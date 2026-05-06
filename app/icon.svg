@@ -1,0 +1,20 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Digital IMALAG logo">
+  <defs>
+    <linearGradient id="bg" x1="18" y1="14" x2="164" y2="166" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EEF5EA" />
+      <stop offset="0.5" stop-color="#DDEFE3" />
+      <stop offset="1" stop-color="#D6EAF8" />
+    </linearGradient>
+    <linearGradient id="ring" x1="24" y1="24" x2="156" y2="156" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A" />
+      <stop offset="1" stop-color="#1E3A8A" />
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="40" fill="url(#bg)" />
+  <rect x="28" y="28" width="124" height="124" rx="32" fill="white" fill-opacity="0.8" stroke="url(#ring)" stroke-opacity="0.2" />
+  <rect x="42" y="42" width="96" height="96" rx="28" fill="#0F172A" />
+  <path d="M58 66H74L92 114H76.5L73.2 103.5H57.6L54.2 114H38.8L58 66ZM60.8 92.6H70.2L65.5 78.4L60.8 92.6Z" fill="#F8FAFC"/>
+  <path d="M100 66H114V114H100V66Z" fill="#F8FAFC"/>
+  <circle cx="130" cy="60" r="7" fill="#22C55E" />
+  <circle cx="130" cy="60" r="3" fill="#F8FAFC" />
+</svg>
