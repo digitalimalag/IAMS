@@ -10,6 +10,7 @@ import { FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Save } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import type { Session } from '@/lib/auth';
 
@@ -59,6 +60,7 @@ function SettingsContent() {
   const [logoPreview, setLogoPreview] = useState('');
   const [logoError, setLogoError] = useState('');
   const [logoTouched, setLogoTouched] = useState(false);
+  const [logoFileName, setLogoFileName] = useState('');
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -260,33 +262,48 @@ function SettingsContent() {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
                       <FieldGroup>
                         <FieldLabel>Company Logo</FieldLabel>
-                        <Input
-                          type="file"
-                          accept="image/png"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            setLogoError('');
-                            setLogoTouched(true);
-                            if (!file) {
-                              setLogoPreview('');
-                              return;
-                            }
-                            if (file.type !== 'image/png') {
-                              setLogoError('Please upload only a PNG file.');
-                              return;
-                            }
-                            if (file.size > 100 * 1024) {
-                              setLogoError('Logo must be 100KB or smaller.');
-                              return;
-                            }
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                          <input
+                            id="company-logo-upload"
+                            type="file"
+                            accept="image/png"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              setLogoError('');
+                              setLogoTouched(true);
+                              if (!file) {
+                                setLogoPreview('');
+                                setLogoFileName('');
+                                return;
+                              }
+                              if (file.type !== 'image/png') {
+                                setLogoError('Please upload only a PNG file.');
+                                return;
+                              }
+                              if (file.size > 100 * 1024) {
+                                setLogoError('Logo must be 100KB or smaller.');
+                                return;
+                              }
 
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              setLogoPreview(String(reader.result || ''));
-                            };
-                            reader.readAsDataURL(file);
-                          }}
-                        />
+                              setLogoFileName(file.name);
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setLogoPreview(String(reader.result || ''));
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                          <label htmlFor="company-logo-upload">
+                            <Button type="button" variant="outline" className="gap-2">
+                              <Upload className="h-4 w-4" />
+                              Browse Logo
+                            </Button>
+                          </label>
+                          <div className="text-sm text-muted-foreground">
+                            {logoFileName || 'PNG only, max 100KB.'}
+                          </div>
+                        </div>
                       </FieldGroup>
                       <div className="flex items-center gap-3">
                         <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
