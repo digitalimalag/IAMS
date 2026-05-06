@@ -467,47 +467,53 @@ function UsersContent() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[1180px] table-fixed">
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-xs uppercase tracking-wide">Name</TableHead>
-                    <TableHead className="text-xs uppercase tracking-wide">Email</TableHead>
-                    <TableHead className="text-xs uppercase tracking-wide">Phone</TableHead>
-                    <TableHead className="text-xs uppercase tracking-wide">Role</TableHead>
-                    <TableHead className="text-xs uppercase tracking-wide">Department</TableHead>
-                    <TableHead className="text-xs uppercase tracking-wide">Status</TableHead>
-                    <TableHead className="text-xs uppercase tracking-wide">Last Login</TableHead>
-                    <TableHead className="text-xs uppercase tracking-wide text-right">Actions</TableHead>
+                    <TableHead className="w-[18%] text-xs uppercase tracking-wide">Name</TableHead>
+                    <TableHead className="w-[22%] text-xs uppercase tracking-wide">Email</TableHead>
+                    <TableHead className="w-[14%] text-xs uppercase tracking-wide">Phone</TableHead>
+                    <TableHead className="w-[14%] text-xs uppercase tracking-wide">Role</TableHead>
+                    <TableHead className="w-[16%] text-xs uppercase tracking-wide">Department</TableHead>
+                    <TableHead className="w-[10%] text-xs uppercase tracking-wide">Status</TableHead>
+                    <TableHead className="w-[12%] text-xs uppercase tracking-wide">Last Login</TableHead>
+                    <TableHead className="w-[4%] text-right text-xs uppercase tracking-wide">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
                     <TableRow key={user.id} className="border-border hover:bg-muted/50">
-                      <TableCell className="text-sm font-medium">{user.name}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Mail className="w-4 h-4" />
-                        {user.email}
+                      <TableCell className="align-top py-4 text-sm font-medium">{user.name}</TableCell>
+                      <TableCell className="align-top py-4 text-sm text-muted-foreground">
+                        <div className="flex items-start gap-2">
+                          <Mail className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span className="break-all">{user.email}</span>
+                        </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
-                        {user.phone || '-'}
+                      <TableCell className="align-top py-4 text-sm text-muted-foreground">
+                        <div className="flex items-start gap-2">
+                          <Phone className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span className="break-all">{user.phone || '-'}</span>
+                        </div>
                       </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="align-top py-4 text-sm">
                         <Badge className={roleColors[user.role]}>
                           {roleLabels[user.role]}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{user.department}</TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="align-top py-4 text-sm text-muted-foreground">{user.department}</TableCell>
+                      <TableCell className="align-top py-4 text-sm">
                         <Badge variant={user.isActive ? 'default' : 'secondary'}>
                           {user.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        {user.lastLogin || '-'}
+                      <TableCell className="align-top py-4 text-sm text-muted-foreground">
+                        <div className="flex items-start gap-2">
+                          <Calendar className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span className="break-words">{user.lastLogin || '-'}</span>
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="align-top py-4 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">

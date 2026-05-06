@@ -3,11 +3,12 @@ import { normalizePlan, type SubscriptionPlan } from '@/lib/subscription';
 
 export const dynamic = 'force-dynamic';
 
-export default function BillingPage({
+export default async function BillingPage({
   searchParams,
 }: {
-  searchParams?: { plan?: string };
+  searchParams?: Promise<{ plan?: string }>;
 }) {
-  const initialPlan = normalizePlan(searchParams?.plan) as SubscriptionPlan;
+  const resolvedSearchParams = (await searchParams) || {};
+  const initialPlan = normalizePlan(resolvedSearchParams.plan) as SubscriptionPlan;
   return <BillingClient initialPlan={initialPlan} />;
 }

@@ -2,16 +2,17 @@ import BillingSuccessClient from './success-client';
 
 export const dynamic = 'force-dynamic';
 
-export default function BillingSuccessPage({
+export default async function BillingSuccessPage({
   searchParams,
 }: {
-  searchParams?: { orderId?: string; paymentId?: string; signature?: string };
+  searchParams?: Promise<{ orderId?: string; paymentId?: string; signature?: string }>;
 }) {
+  const resolvedSearchParams = (await searchParams) || {};
   return (
     <BillingSuccessClient
-      orderId={searchParams?.orderId || null}
-      paymentId={searchParams?.paymentId || null}
-      signature={searchParams?.signature || null}
+      orderId={resolvedSearchParams.orderId || null}
+      paymentId={resolvedSearchParams.paymentId || null}
+      signature={resolvedSearchParams.signature || null}
     />
   );
 }

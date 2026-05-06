@@ -3,11 +3,12 @@ import { normalizePlan } from '@/lib/subscription';
 
 export const dynamic = 'force-dynamic';
 
-export default function SetupPage({
+export default async function SetupPage({
   searchParams,
 }: {
-  searchParams?: { plan?: string };
+  searchParams?: Promise<{ plan?: string }>;
 }) {
-  const selectedPlan = normalizePlan(searchParams?.plan);
+  const resolvedSearchParams = (await searchParams) || {};
+  const selectedPlan = normalizePlan(resolvedSearchParams.plan);
   return <SetupClient selectedPlan={selectedPlan} />;
 }

@@ -21,6 +21,7 @@ const featureList = [
 
 export default function LoginPage() {
   const router = useRouter();
+  const isProduction = process.env.NODE_ENV === 'production';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -66,6 +67,12 @@ export default function LoginPage() {
           .eq('id', profile.organization_id)
           .single();
 
+        await supabase
+          .from('profiles')
+          .update({ last_login_at: new Date().toISOString() })
+          .eq('user_id', data.user.id)
+          .eq('organization_id', profile.organization_id);
+
         const plan = normalizePlan(orgRow?.plan);
         const planConfig = getPlanConfig(plan);
         const subscription = orgRow?.settings?.subscription || {};
@@ -101,6 +108,11 @@ export default function LoginPage() {
         }));
 
         router.push('/dashboard');
+        return;
+      }
+
+      if (isProduction) {
+        setError('Live login is not configured yet. Add the Supabase environment variables in Vercel and redeploy.');
         return;
       }
 
@@ -254,6 +266,15 @@ export default function LoginPage() {
                   If Supabase login returns <code>400</code>, check that the user exists, the password is correct, and email confirmation is configured.
                 </p>
               </div>
+
+              {isProduction && !isSupabaseConfigured() && (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="mb-1 text-sm font-semibold text-amber-900">Live deployment setup needed</p>
+                  <p className="text-sm text-amber-800">
+                    Add <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> in Vercel Environment Variables, then redeploy.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </section>

@@ -13,6 +13,7 @@ import { type SubscriptionPlan } from '@/lib/subscription';
 
 export default function SetupClient({ selectedPlan }: { selectedPlan: SubscriptionPlan }) {
   const router = useRouter();
+  const isProduction = process.env.NODE_ENV === 'production';
   const [organizationName, setOrganizationName] = useState('');
   const [slug, setSlug] = useState('');
   const [fullName, setFullName] = useState('');
@@ -52,6 +53,10 @@ export default function SetupClient({ selectedPlan }: { selectedPlan: Subscripti
       }
 
       if (!isSupabaseConfigured()) {
+        if (isProduction) {
+          setError('Live sign up is not configured yet. Add Supabase environment variables in Vercel and redeploy.');
+          return;
+        }
         router.push('/login');
         return;
       }
@@ -79,6 +84,12 @@ export default function SetupClient({ selectedPlan }: { selectedPlan: Subscripti
         router.push('/login');
         return;
       }
+
+      await supabase
+        .from('profiles')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('user_id', signInData.user.id)
+        .eq('organization_id', profile.organization_id);
 
       const session = {
         userId: signInData.user.id,
