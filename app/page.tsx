@@ -18,6 +18,7 @@ const plans = [
     name: 'Starter',
     price: 'Rs-600/M | 6500/Y',
     billing: '10 Users',
+    savings: 'Save Rs-700/year',
     href: '/billing?plan=starter',
     tone: 'border-sky-500/20 bg-sky-50 text-sky-900',
     accent: 'text-sky-700',
@@ -26,6 +27,7 @@ const plans = [
     name: 'Growth',
     price: 'Rs-700/M | 7500/Y',
     billing: '50 Users',
+    savings: 'Save Rs-900/year',
     href: '/billing?plan=growth',
     tone: 'border-teal-500/20 bg-teal-50 text-teal-900',
     accent: 'text-teal-700',
@@ -34,6 +36,7 @@ const plans = [
     name: 'Enterprise',
     price: 'Rs-1000/M | 10000/Y',
     billing: '250 Users',
+    savings: 'Save Rs-2000/year',
     href: '/billing?plan=enterprise',
     tone: 'border-slate-500/20 bg-slate-50 text-slate-900',
     accent: 'text-slate-700',
@@ -233,6 +236,11 @@ export default function HomePage() {
                   <div>
                     <p className="text-sm text-slate-500">Price</p>
                     <p className={`mt-1 text-xl font-semibold ${plan.accent}`}>{plan.price}</p>
+                    {plan.savings && (
+                      <div className="mt-3 inline-flex rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                        {plan.savings}
+                      </div>
+                    )}
                   </div>
                   <Link href={plan.href}>
                     <Button className="w-full bg-slate-900 text-white hover:bg-slate-800">

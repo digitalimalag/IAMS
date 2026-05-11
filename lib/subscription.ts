@@ -10,6 +10,7 @@ export interface PlanConfig {
   yearlyPrice: string;
   monthlyAmount: number;
   yearlyAmount: number;
+  yearlySavingsAmount: number;
   summary: string;
   highlight?: string;
 }
@@ -24,6 +25,7 @@ export const PLAN_CONFIGS: Record<SubscriptionPlan, PlanConfig> = {
     yearlyPrice: 'Rs-0 Y',
     monthlyAmount: 0,
     yearlyAmount: 0,
+    yearlySavingsAmount: 0,
     summary: 'Best for trying the product with one master admin and five assets.',
     highlight: 'Free forever for single-tenant evaluation',
   },
@@ -36,6 +38,7 @@ export const PLAN_CONFIGS: Record<SubscriptionPlan, PlanConfig> = {
     yearlyPrice: 'Rs-6500 Y',
     monthlyAmount: 600,
     yearlyAmount: 6500,
+    yearlySavingsAmount: 700,
     summary: 'For small teams that need dependable asset and issue workflows.',
     highlight: 'Best for small teams',
   },
@@ -48,6 +51,7 @@ export const PLAN_CONFIGS: Record<SubscriptionPlan, PlanConfig> = {
     yearlyPrice: 'Rs-7500 Y',
     monthlyAmount: 700,
     yearlyAmount: 7500,
+    yearlySavingsAmount: 900,
     summary: 'For growing companies that manage more users, assets, and sites.',
     highlight: 'Best value for scaling companies',
   },
@@ -60,6 +64,7 @@ export const PLAN_CONFIGS: Record<SubscriptionPlan, PlanConfig> = {
     yearlyPrice: 'Rs-10000 Y',
     monthlyAmount: 1000,
     yearlyAmount: 10000,
+    yearlySavingsAmount: 2000,
     summary: 'For large organizations with advanced access control and billing needs.',
     highlight: 'For large operations and multi-site IT',
   },
@@ -84,4 +89,31 @@ export function getBillingLabel(cycle: BillingCycle) {
 export function getPlanAmount(plan: SubscriptionPlan, cycle: BillingCycle) {
   const config = PLAN_CONFIGS[plan];
   return cycle === 'yearly' ? config.yearlyAmount : config.monthlyAmount;
+}
+
+export function getSubscriptionTimeline(cycle: BillingCycle, startedAt = new Date()) {
+  const expiresAt = new Date(startedAt);
+  if (cycle === 'yearly') {
+    expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+  } else {
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+  }
+
+  const renewalNoticeAt = new Date(expiresAt);
+  renewalNoticeAt.setDate(renewalNoticeAt.getDate() - 5);
+
+  const graceEndsAt = new Date(expiresAt);
+  graceEndsAt.setDate(graceEndsAt.getDate() + 7);
+
+  return {
+    startedAt: startedAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    renewalNoticeAt: renewalNoticeAt.toISOString(),
+    graceEndsAt: graceEndsAt.toISOString(),
+  };
+}
+
+export function getRenewalCopy(plan: SubscriptionPlan, cycle: BillingCycle) {
+  const config = PLAN_CONFIGS[plan];
+  return `Your ${config.label} plan will expire in 5 days. Renew now to keep assets, users, and tickets active.`;
 }

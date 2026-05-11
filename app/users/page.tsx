@@ -467,17 +467,17 @@ function UsersContent() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <Table className="min-w-[1180px] table-fixed">
+              <Table className="min-w-[1320px] table-fixed">
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="w-[18%] text-xs uppercase tracking-wide">Name</TableHead>
+                    <TableHead className="w-[16%] text-xs uppercase tracking-wide">Name</TableHead>
                     <TableHead className="w-[22%] text-xs uppercase tracking-wide">Email</TableHead>
-                    <TableHead className="w-[14%] text-xs uppercase tracking-wide">Phone</TableHead>
-                    <TableHead className="w-[14%] text-xs uppercase tracking-wide">Role</TableHead>
-                    <TableHead className="w-[16%] text-xs uppercase tracking-wide">Department</TableHead>
+                    <TableHead className="w-[13%] text-xs uppercase tracking-wide">Phone</TableHead>
+                    <TableHead className="w-[12%] text-xs uppercase tracking-wide">Role</TableHead>
+                    <TableHead className="w-[15%] text-xs uppercase tracking-wide">Department</TableHead>
                     <TableHead className="w-[10%] text-xs uppercase tracking-wide">Status</TableHead>
-                    <TableHead className="w-[12%] text-xs uppercase tracking-wide">Last Login</TableHead>
-                    <TableHead className="w-[4%] text-right text-xs uppercase tracking-wide">Actions</TableHead>
+                    <TableHead className="w-[14%] text-xs uppercase tracking-wide">Last Login</TableHead>
+                    <TableHead className="w-[8%] text-right text-xs uppercase tracking-wide">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -485,13 +485,13 @@ function UsersContent() {
                     <TableRow key={user.id} className="border-border hover:bg-muted/50">
                       <TableCell className="align-top py-4 text-sm font-medium">{user.name}</TableCell>
                       <TableCell className="align-top py-4 text-sm text-muted-foreground">
-                        <div className="flex items-start gap-2">
+                        <div className="flex min-w-0 items-start gap-2">
                           <Mail className="mt-0.5 h-4 w-4 shrink-0" />
                           <span className="break-all">{user.email}</span>
                         </div>
                       </TableCell>
                       <TableCell className="align-top py-4 text-sm text-muted-foreground">
-                        <div className="flex items-start gap-2">
+                        <div className="flex min-w-0 items-start gap-2">
                           <Phone className="mt-0.5 h-4 w-4 shrink-0" />
                           <span className="break-all">{user.phone || '-'}</span>
                         </div>
@@ -508,12 +508,12 @@ function UsersContent() {
                         </Badge>
                       </TableCell>
                       <TableCell className="align-top py-4 text-sm text-muted-foreground">
-                        <div className="flex items-start gap-2">
+                        <div className="flex min-w-0 items-start gap-2">
                           <Calendar className="mt-0.5 h-4 w-4 shrink-0" />
-                          <span className="break-words">{user.lastLogin || '-'}</span>
+                          <span className="block max-w-[220px] truncate">{user.lastLogin || '-'}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="align-top py-4 text-right">
+                      <TableCell className="align-top py-4 text-right whitespace-nowrap">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">

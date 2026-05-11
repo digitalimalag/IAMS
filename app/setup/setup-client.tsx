@@ -54,7 +54,7 @@ export default function SetupClient({ selectedPlan }: { selectedPlan: Subscripti
 
       if (!isSupabaseConfigured()) {
         if (isProduction) {
-          setError('Live sign up is not configured yet. Add Supabase environment variables in Vercel and redeploy.');
+          setError('Live sign up is not configured yet. Please contact your administrator.');
           return;
         }
         router.push('/login');
@@ -101,6 +101,9 @@ export default function SetupClient({ selectedPlan }: { selectedPlan: Subscripti
         department: profile.department || '',
         token: signInData.session.access_token,
         expiresAt: new Date((signInData.session.expires_at || 0) * 1000).toISOString(),
+        subscriptionExpiresAt: data.subscriptionExpiresAt,
+        subscriptionRenewalNoticeAt: data.subscriptionRenewalNoticeAt,
+        subscriptionGraceEndsAt: data.subscriptionGraceEndsAt,
         plan: data.plan || selectedPlan,
         assetLimit: data.assetLimit,
         userLimit: data.userLimit,
@@ -142,7 +145,7 @@ export default function SetupClient({ selectedPlan }: { selectedPlan: Subscripti
               Create your master admin and launch your tenant workspace.
             </h1>
             <p className="max-w-xl text-lg leading-8 text-slate-600">
-              This one-time setup creates your first organization, master admin, and initial department in Supabase.
+              This one-time setup creates your first organization, master admin, and initial department in your workspace.
             </p>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
               <p className="font-medium text-slate-900">What to fill here</p>

@@ -76,6 +76,9 @@ export default function LoginPage() {
         const plan = normalizePlan(orgRow?.plan);
         const planConfig = getPlanConfig(plan);
         const subscription = orgRow?.settings?.subscription || {};
+        const subscriptionExpiresAt = subscription.expiresAt || undefined;
+        const subscriptionRenewalNoticeAt = subscription.renewalNoticeAt || undefined;
+        const subscriptionGraceEndsAt = subscription.graceEndsAt || undefined;
 
         const session = {
           userId: data.user.id,
@@ -87,6 +90,9 @@ export default function LoginPage() {
           department: profile.department || '',
           token: data.session.access_token,
           expiresAt: new Date((data.session.expires_at || 0) * 1000).toISOString(),
+          subscriptionExpiresAt,
+          subscriptionRenewalNoticeAt,
+          subscriptionGraceEndsAt,
           plan,
           assetLimit: Number.isFinite(subscription.assetLimit) ? subscription.assetLimit : planConfig.assetLimit,
           userLimit: Number(subscription.userLimit || planConfig.userLimit),
@@ -112,7 +118,7 @@ export default function LoginPage() {
       }
 
       if (isProduction) {
-        setError('Live login is not configured yet. Add the Supabase environment variables in Vercel and redeploy.');
+        setError('Live login is not configured yet. Please contact your administrator.');
         return;
       }
 
@@ -244,7 +250,7 @@ export default function LoginPage() {
               <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="mb-2 text-sm font-semibold text-slate-900">Need access?</p>
                 <p className="text-sm leading-6 text-slate-600">
-                  Create or invite users in Supabase Auth, then map them to a company profile in <code>profiles</code>.
+                  Secure access for authorized company users only. Contact your administrator if you need account access.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Link href="/">
@@ -263,7 +269,7 @@ export default function LoginPage() {
               <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                 <p className="mb-2 text-sm font-semibold text-emerald-900">Login note</p>
                 <p className="text-sm text-emerald-800">
-                  If Supabase login returns <code>400</code>, check that the user exists, the password is correct, and email confirmation is configured.
+                  If sign in fails, check that the email and password are correct and that the account is active.
                 </p>
               </div>
 
@@ -271,7 +277,7 @@ export default function LoginPage() {
                 <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                   <p className="mb-1 text-sm font-semibold text-amber-900">Live deployment setup needed</p>
                   <p className="text-sm text-amber-800">
-                    Add <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> in Vercel Environment Variables, then redeploy.
+                    Add the required environment variables in your hosting dashboard, then redeploy.
                   </p>
                 </div>
               )}

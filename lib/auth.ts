@@ -246,6 +246,9 @@ export interface Session {
   department: string;
   token: string;
   expiresAt: string;
+  subscriptionExpiresAt?: string;
+  subscriptionRenewalNoticeAt?: string;
+  subscriptionGraceEndsAt?: string;
   plan?: 'free' | 'starter' | 'growth' | 'enterprise';
   assetLimit?: number;
   userLimit?: number;
@@ -268,6 +271,9 @@ export function createSession(user: Omit<AuthUser, 'password'>, token: string): 
     department: user.department,
     token,
     expiresAt: expiresAt.toISOString(),
+    subscriptionExpiresAt: undefined,
+    subscriptionRenewalNoticeAt: undefined,
+    subscriptionGraceEndsAt: undefined,
     plan: 'free',
     assetLimit: 5,
     userLimit: 1,

@@ -16,6 +16,9 @@ import {
   ShoppingCart,
   Clock,
   Briefcase,
+  BadgeDollarSign,
+  CreditCard,
+  ReceiptText,
   LogOut,
   X,
 } from 'lucide-react';
@@ -50,6 +53,11 @@ const allNavItems: NavItem[] = [
   { label: 'Reports', href: '/reports', icon: BarChart3, adminOnly: true },
   { label: 'Audit Logs', href: '/audit-logs', icon: FileText, adminOnly: true },
   { label: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
+  { category: 'Billing & Plans', masterAdminOnly: true },
+  { label: 'Billing', href: '/billing', icon: BadgeDollarSign, masterAdminOnly: true },
+  { label: 'Payments', href: '/billing?view=payments', icon: CreditCard, masterAdminOnly: true },
+  { label: 'Subscription Plan', href: '/billing?view=subscription', icon: ReceiptText, masterAdminOnly: true },
+  { label: 'Onboarding', href: '/onboarding', icon: FileText, masterAdminOnly: true },
 ];
 
 interface SidebarProps {

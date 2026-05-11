@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServiceRoleClient } from '@/lib/supabase/admin';
-import { getPlanConfig, normalizePlan } from '@/lib/subscription';
+import { getPlanConfig, getSubscriptionTimeline, normalizePlan } from '@/lib/subscription';
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
 
     let organizationId = existingOrg?.id;
     const planConfig = getPlanConfig(plan);
+    const subscriptionTimeline = getSubscriptionTimeline(billingCycle);
 
     if (existingOrg) {
       const { data: existingAdmin } = await supabase
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
               assetLimit: Number.isFinite(planConfig.assetLimit) ? planConfig.assetLimit : null,
               userLimit: planConfig.userLimit,
               status: plan === 'free' ? 'active' : 'active',
+              ...subscriptionTimeline,
             },
           },
         })
@@ -79,6 +81,7 @@ export async function POST(request: NextRequest) {
       assetLimit: Number.isFinite(planConfig.assetLimit) ? planConfig.assetLimit : null,
       userLimit: planConfig.userLimit,
       status: plan === 'free' ? 'active' : 'active',
+      ...subscriptionTimeline,
     };
 
     const { data: createdUser, error: createUserError } = await supabase.auth.admin.createUser({

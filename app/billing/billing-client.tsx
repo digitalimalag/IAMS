@@ -168,6 +168,11 @@ export default function BillingClient({ initialPlan }: { initialPlan: Subscripti
                     >
                       <p className={`text-sm font-medium ${active ? 'text-white' : 'text-slate-900'}`}>{plan.label}</p>
                       <p className={`mt-1 text-xs leading-5 ${active ? 'text-slate-300' : 'text-slate-500'}`}>{plan.summary}</p>
+                      {plan.yearlySavingsAmount > 0 && (
+                        <div className="mt-3 inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+                          Save Rs-{plan.yearlySavingsAmount}/year
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -198,6 +203,11 @@ export default function BillingClient({ initialPlan }: { initialPlan: Subscripti
                 <p className="mt-2 text-sm text-slate-600">
                   {billingCycle === 'yearly' ? planConfig.yearlyPrice : planConfig.monthlyPrice} for {getBillingLabel(billingCycle).toLowerCase()} billing
                 </p>
+                {billingCycle === 'yearly' && planConfig.yearlySavingsAmount > 0 && (
+                  <div className="mt-3 inline-flex rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    Yearly savings: Rs-{planConfig.yearlySavingsAmount}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

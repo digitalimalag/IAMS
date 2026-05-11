@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServiceRoleClient } from '@/lib/supabase/admin';
 import { getRazorpayConfig } from '@/lib/billing';
-import { getPlanConfig, normalizePlan } from '@/lib/subscription';
+import { getPlanConfig, getSubscriptionTimeline, normalizePlan } from '@/lib/subscription';
 
 function verifySignature(orderId: string, paymentId: string, signature: string, keySecret: string) {
   const expected = crypto
@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
 
     const selectedPlan = normalizePlan(billingIntent.plan);
     const planConfig = getPlanConfig(selectedPlan);
+    const subscriptionTimeline = getSubscriptionTimeline(billingIntent.billing_cycle);
     const organizationSettings = {
       company: {
         email: billingIntent.email,
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
         paymentMethod: billingIntent.payment_method,
         provider: 'razorpay',
         razorpayOrderId: orderId,
+        ...subscriptionTimeline,
       },
     };
 
@@ -205,8 +207,12 @@ export async function POST(request: NextRequest) {
       password: billingIntent.password,
       plan: selectedPlan,
       billingCycle: billingIntent.billing_cycle,
+      amount: Number(billingIntent.metadata?.amount || planConfig.monthlyAmount) * 100,
       assetLimit: Number.isFinite(planConfig.assetLimit) ? planConfig.assetLimit : null,
       userLimit: planConfig.userLimit,
+      subscriptionExpiresAt: subscriptionTimeline.expiresAt,
+      subscriptionRenewalNoticeAt: subscriptionTimeline.renewalNoticeAt,
+      subscriptionGraceEndsAt: subscriptionTimeline.graceEndsAt,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected error';

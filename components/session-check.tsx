@@ -22,11 +22,13 @@ export function SessionCheck({ children }: SessionCheckProps) {
 
       try {
         const session: Session = JSON.parse(sessionStr);
-        const expiresAt = new Date(session.expiresAt);
+        const subscriptionExpiresAt = session.subscriptionExpiresAt ? new Date(session.subscriptionExpiresAt) : null;
+        const expiresAt = subscriptionExpiresAt || new Date(session.expiresAt);
+        const now = new Date();
         
-        if (new Date() > expiresAt) {
+        if (now > expiresAt) {
           localStorage.removeItem('session');
-          router.push('/login');
+          router.push('/billing?renew=1');
         }
       } catch {
         localStorage.removeItem('session');
