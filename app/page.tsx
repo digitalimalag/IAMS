@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, BadgeCheck, Laptop2, Network, Server, ShieldCheck, Users } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Download, Laptop2, Network, Server, ShieldCheck, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -119,6 +119,23 @@ export default function HomePage() {
               </Link>
             </div>
 
+            <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-amber-200 bg-amber-50/80 px-4 py-3 shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-amber-700 shadow-sm">
+                <Download className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-slate-900">New User Guide PDF</p>
+                <p className="text-sm text-slate-600">
+                  Download the guided PDF to understand signup, login, settings, departments, assets, issues, and billing.
+                </p>
+              </div>
+              <Link href="/IT_Assets_Management_SaaS_User_Guide.pdf" download>
+                <Button variant="outline" className="border-amber-300 bg-white text-amber-800 hover:bg-amber-100">
+                  Download PDF
+                </Button>
+              </Link>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               {highlights.map((item) => (
                 <Card key={item} className="border-white/80 bg-white/85 shadow-sm">
@@ -151,7 +168,7 @@ export default function HomePage() {
               <CardHeader className="border-b border-slate-200/70 bg-gradient-to-r from-white to-slate-50">
                 <CardTitle className="text-slate-900">What we do</CardTitle>
                 <p className="text-sm text-slate-600">
-                  We help IT teams tag assets, manage support, and keep company access structured.
+                  Simplify IT asset management, streamline support ticket resolution, and maintain complete operational records with an intelligent platform built to help your IT teams work faster, stay organized, and keep every company asset under control.
                 </p>
               </CardHeader>
               <CardContent className="grid gap-6 p-6 lg:grid-cols-[0.95fr_1.05fr]">

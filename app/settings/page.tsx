@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { SessionCheck } from '@/components/session-check';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,8 +9,7 @@ import { Input } from '@/components/ui/input';
 import { FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save } from 'lucide-react';
-import { Upload } from 'lucide-react';
+import { Save, Upload, X } from 'lucide-react';
 import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import type { Session } from '@/lib/auth';
 
@@ -31,6 +30,7 @@ type CompanySettingsState = {
 
 function SettingsContent() {
   const [session, setSession] = useState<Session | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [organizationId, setOrganizationId] = useState('');
   const [companySettings, setCompanySettings] = useState<CompanySettingsState>({
     companyName: '',
@@ -61,6 +61,49 @@ function SettingsContent() {
   const [logoError, setLogoError] = useState('');
   const [logoTouched, setLogoTouched] = useState(false);
   const [logoFileName, setLogoFileName] = useState('');
+  const [isDraggingLogo, setIsDraggingLogo] = useState(false);
+
+  const handleLogoBrowse = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleLogoChange = (file?: File) => {
+    setLogoError('');
+    setLogoTouched(true);
+
+    if (!file) {
+      setLogoPreview('');
+      setLogoFileName('');
+      return;
+    }
+
+    if (file.type !== 'image/png') {
+      setLogoError('Please upload only a PNG file.');
+      return;
+    }
+
+    if (file.size > 100 * 1024) {
+      setLogoError('Logo must be 100KB or smaller.');
+      return;
+    }
+
+    setLogoFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLogoPreview(String(reader.result || ''));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLogoRemove = () => {
+    setLogoError('');
+    setLogoTouched(true);
+    setLogoPreview('');
+    setLogoFileName('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -262,59 +305,71 @@ function SettingsContent() {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
                       <FieldGroup>
                         <FieldLabel>Company Logo</FieldLabel>
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                          <input
-                            id="company-logo-upload"
-                            type="file"
-                            accept="image/png"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              setLogoError('');
-                              setLogoTouched(true);
-                              if (!file) {
-                                setLogoPreview('');
-                                setLogoFileName('');
-                                return;
-                              }
-                              if (file.type !== 'image/png') {
-                                setLogoError('Please upload only a PNG file.');
-                                return;
-                              }
-                              if (file.size > 100 * 1024) {
-                                setLogoError('Logo must be 100KB or smaller.');
-                                return;
-                              }
+                        <div
+                          className={`rounded-3xl border-2 border-dashed p-4 transition ${
+                            isDraggingLogo
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border/70 bg-background/40 hover:border-primary/50'
+                          }`}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setIsDraggingLogo(true);
+                          }}
+                          onDragLeave={() => setIsDraggingLogo(false)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setIsDraggingLogo(false);
+                            handleLogoChange(e.dataTransfer.files?.[0]);
+                          }}
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                <Upload className="h-4 w-4 text-muted-foreground" />
+                                Drag & drop your logo here
+                              </div>
+                              <p className="text-xs leading-5 text-muted-foreground">
+                                Upload a PNG logo, preferably square. Maximum size: 100KB. For best results, use a transparent background and keep the logo around 200x200 px.
+                              </p>
+                              <div className="text-sm text-muted-foreground">
+                                {logoFileName || 'No file selected yet.'}
+                              </div>
+                            </div>
 
-                              setLogoFileName(file.name);
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                setLogoPreview(String(reader.result || ''));
-                              };
-                              reader.readAsDataURL(file);
-                            }}
-                          />
-                          <label htmlFor="company-logo-upload">
-                            <Button type="button" variant="outline" className="gap-2">
-                              <Upload className="h-4 w-4" />
-                              Browse Logo
-                            </Button>
-                          </label>
-                          <div className="text-sm text-muted-foreground">
-                            {logoFileName || 'PNG only, max 100KB.'}
+                            <div className="flex flex-wrap gap-2">
+                              <input
+                                ref={fileInputRef}
+                                id="company-logo-upload"
+                                type="file"
+                                accept="image/png"
+                                className="hidden"
+                                onChange={(e) => {
+                                  handleLogoChange(e.target.files?.[0]);
+                                  e.target.value = '';
+                                }}
+                              />
+                              <Button type="button" variant="outline" className="gap-2" onClick={handleLogoBrowse}>
+                                <Upload className="h-4 w-4" />
+                                Browse Logo
+                              </Button>
+                              <Button type="button" variant="ghost" className="gap-2 text-muted-foreground hover:text-destructive" onClick={handleLogoRemove}>
+                                <X className="h-4 w-4" />
+                                Remove
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </FieldGroup>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+                        <div className="flex items-center gap-3">
+                        <div className="flex h-20 w-28 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-2 shadow-sm sm:h-24 sm:w-32">
                           {logoPreview ? (
-                            <img src={logoPreview} alt="Company logo preview" className="h-full w-full object-cover" />
+                            <img src={logoPreview} alt="Company logo preview" className="h-full w-full object-contain" />
                           ) : (
                             <span className="text-xs text-muted-foreground">No logo</span>
                           )}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          PNG only, max 100KB. Stored as <code>logo.png</code> for the company workspace.
+                          PNG only, max 100KB. Stored as <code>logo.png</code> for the company workspace. The preview box fits square and wide logos more naturally.
                         </div>
                       </div>
                     </div>

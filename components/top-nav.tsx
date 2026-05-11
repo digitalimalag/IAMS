@@ -120,7 +120,7 @@ export function TopNav({ onMenuToggle }: TopNavProps) {
           )}
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-              <Image src={workspaceLogo} alt="Company logo" width={36} height={36} className="h-full w-full object-cover" unoptimized />
+              <Image src={workspaceLogo} alt="Company logo" width={36} height={36} className="h-full w-full object-contain p-0.5" unoptimized />
             </div>
             <div>
               <h1 className="text-lg font-semibold text-foreground">{workspaceName}</h1>

@@ -22,6 +22,7 @@ export interface AssetRequest {
   title: string;
   description: string;
   requestedBy: string;
+  requestedByUserId?: string;
   department: string;
   assetType: string;
   quantity: number;
@@ -143,6 +144,7 @@ export interface NetworkDevice {
   lastSeen: string;
   firmwareVersion: string;
   department: string;
+  assignedToUserId?: string;
 }
 
 export interface Issue {
@@ -162,6 +164,7 @@ export interface Issue {
 export interface AssetHandover {
   id: string;
   employeeId: string;
+  employeeUserId?: string;
   employeeName: string;
   employeeRole: string;
   resignationDate: string;

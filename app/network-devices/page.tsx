@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,10 +18,12 @@ import { mockNetworkDevices } from '@/lib/mock-data';
 import { NetworkDeviceTable } from '@/components/tables/network-device-table';
 import { AddNetworkDeviceModal } from '@/components/modals/add-network-device-modal';
 import { ExportButtons } from '@/components/export-buttons';
+import type { Session } from '@/lib/auth';
 
 const DEVICE_STORAGE_KEY = 'it_network_devices';
 
 export default function NetworkDevicesPage() {
+  const [session, setSession] = useState<Session | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -31,6 +33,15 @@ export default function NetworkDevicesPage() {
   const [devices, setDevices] = useState(mockNetworkDevices);
 
   useEffect(() => {
+    const sessionStr = localStorage.getItem('session');
+    if (sessionStr) {
+      try {
+        setSession(JSON.parse(sessionStr));
+      } catch {
+        setSession(null);
+      }
+    }
+
     const storedDevices = localStorage.getItem(DEVICE_STORAGE_KEY);
     if (!storedDevices) return;
     try {
@@ -63,8 +74,17 @@ export default function NetworkDevicesPage() {
     persistDevices(devices.filter(d => d.id !== id));
   };
 
+  const visibleDevices = useMemo(() => {
+    if (!session || session.role !== 'employee') return devices;
+    return devices.filter((device) => {
+      const deptMatch = device.department.toLowerCase() === session.department.toLowerCase();
+      const assigneeMatch = device.assignedToUserId === session.userId;
+      return deptMatch || assigneeMatch;
+    });
+  }, [devices, session]);
+
   // Filter devices
-  const filteredDevices = devices.filter((device) => {
+  const filteredDevices = visibleDevices.filter((device) => {
     const matchesSearch = 
       device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       device.ipAddress.includes(searchTerm) ||
@@ -77,9 +97,9 @@ export default function NetworkDevicesPage() {
     return matchesSearch && matchesType && matchesStatus && matchesDepartment;
   });
 
-  const uniqueTypes = Array.from(new Set(devices.map(d => d.type)));
-  const uniqueStatuses = Array.from(new Set(devices.map(d => d.status)));
-  const uniqueDepartments = Array.from(new Set(devices.map(d => d.department)));
+  const uniqueTypes = Array.from(new Set(visibleDevices.map(d => d.type)));
+  const uniqueStatuses = Array.from(new Set(visibleDevices.map(d => d.status)));
+  const uniqueDepartments = Array.from(new Set(visibleDevices.map(d => d.department)));
 
   return (
     <DashboardLayout>
@@ -172,7 +192,7 @@ export default function NetworkDevicesPage() {
 
               {/* Results */}
               <div className="flex items-center justify-end text-sm text-muted-foreground">
-                {filteredDevices.length} of {devices.length} devices
+                {filteredDevices.length} of {visibleDevices.length} devices
               </div>
             </div>
           </CardContent>

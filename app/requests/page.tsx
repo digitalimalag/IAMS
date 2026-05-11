@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { SessionCheck } from '@/components/session-check';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,9 +16,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { mockAssetRequests, mockDepartments } from '@/lib/mock-data';
 import type { AssetRequest } from '@/lib/mock-data';
 import { formatINR } from '@/lib/money';
+import type { Session } from '@/lib/auth';
 
 function RequestsContent() {
   const [requests, setRequests] = useState(mockAssetRequests);
+  const [session, setSession] = useState<Session | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -34,7 +36,24 @@ function RequestsContent() {
     department: '',
   });
 
-  const filteredRequests = requests.filter(r => {
+  useEffect(() => {
+    const sessionStr = localStorage.getItem('session');
+    if (!sessionStr) return;
+    try {
+      setSession(JSON.parse(sessionStr));
+    } catch {
+      setSession(null);
+    }
+  }, []);
+
+  const visibleRequests = useMemo(() => {
+    if (!session || session.role !== 'employee') return requests;
+    return requests.filter((request) =>
+      request.requestedByUserId === session.userId || request.requestedBy === session.name
+    );
+  }, [requests, session]);
+
+  const filteredRequests = visibleRequests.filter(r => {
     const matchesSearch = r.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -87,7 +106,8 @@ function RequestsContent() {
     } else {
       setRequests([...requests, {
         id: `REQ-${Date.now()}`,
-        requestedBy: 'Current User',
+        requestedBy: session?.name || 'Current User',
+        requestedByUserId: session?.userId,
         status: 'Pending',
         createdDate: new Date().toISOString().split('T')[0],
         ...formData,
@@ -214,7 +234,7 @@ function RequestsContent() {
                                 <Edit className="w-4 h-4" />
                                 Edit
                               </DropdownMenuItem>
-                              {request.status === 'Pending' && (
+                              {session?.role !== 'employee' && request.status === 'Pending' && (
                                 <>
                                   <DropdownMenuItem className="gap-2" onClick={() => handleApprove(request.id)}>
                                     Approve

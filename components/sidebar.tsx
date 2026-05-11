@@ -128,7 +128,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         <div className="flex h-16 items-center justify-between border-b border-border/60 px-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
-              <Image src={workspaceLogo} alt="Company logo" width={40} height={40} className="h-full w-full object-cover" unoptimized />
+              <Image src={workspaceLogo} alt="Company logo" width={40} height={40} className="h-full w-full object-contain p-0.5" unoptimized />
             </div>
             <div className="leading-tight">
               <p className="text-sm font-semibold text-foreground">{workspaceName}</p>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { SessionCheck } from '@/components/session-check';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,12 +11,15 @@ import { Input } from '@/components/ui/input';
 import { FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Search } from 'lucide-react';
+import { Download, Plus, Search } from 'lucide-react';
 import { formatDateYMD } from '@/lib/date';
 import { mockAssetHandovers, mockAssets, mockDepartments } from '@/lib/mock-data';
 import type { AssetHandover } from '@/lib/mock-data';
+import type { Session } from '@/lib/auth';
+import { downloadHandoverPdf } from '@/lib/handover-pdf';
 
 function HandoversContent() {
+  const [session, setSession] = useState<Session | null>(null);
   const [handovers, setHandovers] = useState<AssetHandover[]>(mockAssetHandovers);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -34,14 +37,33 @@ function HandoversContent() {
     assetIds: [] as string[],
   });
 
-  const filteredHandovers = handovers.filter(handover => {
+  useEffect(() => {
+    const sessionStr = localStorage.getItem('session');
+    if (!sessionStr) return;
+    try {
+      setSession(JSON.parse(sessionStr));
+    } catch {
+      setSession(null);
+    }
+  }, []);
+
+  const visibleHandovers = useMemo(() => {
+    if (!session || session.role !== 'employee') return handovers;
+    return handovers.filter((handover) =>
+      handover.employeeId === session.userId ||
+      handover.employeeName.toLowerCase() === session.name.toLowerCase()
+    );
+  }, [handovers, session]);
+
+  const filteredHandovers = visibleHandovers.filter(handover => {
     const matchesSearch = handover.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       handover.department.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || handover.handoverStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const activeHandover = handovers.find(h => h.id === activeHandoverId) || null;
+  const activeHandover = visibleHandovers.find(h => h.id === activeHandoverId) || null;
+  const canManageHandovers = !session || session.role !== 'employee';
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -180,6 +202,10 @@ function HandoversContent() {
     });
   };
 
+  const exportHandoverPdf = async (handover: AssetHandover) => {
+    await downloadHandoverPdf(handover, mockAssets, session?.organizationName);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -190,10 +216,12 @@ function HandoversContent() {
             <p className="text-muted-foreground mt-2">Manage employee asset handover during resignation</p>
           </div>
           <div className="flex flex-wrap justify-start gap-2 lg:justify-center">
-            <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90 w-fit" onClick={openCreate}>
-              <Plus className="w-4 h-4" />
-              New Handover
-            </Button>
+            {canManageHandovers && (
+              <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90 w-fit" onClick={openCreate}>
+                <Plus className="w-4 h-4" />
+                New Handover
+              </Button>
+            )}
           </div>
           <div className="hidden lg:block" />
         </div>
@@ -288,9 +316,20 @@ function HandoversContent() {
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => openView(handover.id)}>
                           View Details
                         </Button>
-                        <Button size="sm" className="flex-1 bg-primary hover:bg-primary/90" onClick={() => openManage(handover.id)}>
-                          Manage Handover
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 gap-2"
+                          onClick={() => exportHandoverPdf(handover)}
+                        >
+                          <Download className="w-4 h-4" />
+                          Download PDF
                         </Button>
+                        {canManageHandovers && (
+                          <Button size="sm" className="flex-1 bg-primary hover:bg-primary/90" onClick={() => openManage(handover.id)}>
+                            Manage Handover
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -500,7 +539,10 @@ function HandoversContent() {
               </div>
 
               {mode === 'manage' && (
-                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" onClick={() => exportHandoverPdf(activeHandover)}>
+                    Download PDF
+                  </Button>
                   <Button variant="outline" onClick={markInProgress}>
                     Mark In Progress
                   </Button>
