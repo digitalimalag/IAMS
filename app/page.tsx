@@ -58,9 +58,10 @@ const steps = [
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-[#f5f6ef] text-slate-900">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(173,216,230,0.55),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(164,196,172,0.45),_transparent_28%),linear-gradient(135deg,#f9faf6_0%,#eef4ed_48%,#edf2f7_100%)]" />
-      <div className="absolute inset-x-0 top-0 -z-10 h-[460px] bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.95),_transparent_65%)]" />
+    <main className="relative min-h-screen overflow-hidden bg-transparent text-slate-900">
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(249,250,246,0.70)_0%,rgba(238,244,237,0.54)_48%,rgba(237,242,247,0.66)_100%)]" />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(173,216,230,0.28),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(164,196,172,0.22),_transparent_28%)]" />
+      <div className="absolute inset-x-0 top-0 -z-10 h-[460px] bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.88),_transparent_65%)]" />
 
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-5 lg:px-10">
         <header className="flex items-center justify-between rounded-3xl border border-white/70 bg-white/75 px-5 py-4 shadow-sm backdrop-blur">
@@ -261,6 +262,9 @@ export default function HomePage() {
             </Link>
             <Link href="/login" className="hover:text-slate-900">
               Login
+            </Link>
+            <Link href="/terms" className="hover:text-slate-900">
+              Terms & Conditions
             </Link>
           </div>
         </footer>

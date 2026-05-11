@@ -144,29 +144,47 @@ export function BillingOverview({ initialView = 'billing' }: { initialView?: 'bi
   const planCards = useMemo(() => planOrder.filter((plan) => plan !== 'free'), []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">Billing center</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">Billing, Payments, and Plans</h1>
-          <p className="mt-2 max-w-2xl text-muted-foreground">
-            Review your active subscription, manage renewals, and download invoices from one clean workspace.
-          </p>
-        </div>
+    <div className="min-h-screen bg-transparent mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-5">
 
-        <div className="flex flex-wrap gap-2">
-          {(['billing', 'payments', 'subscription'] as const).map((view) => (
-            <Button
-              key={view}
-              variant={activeView === view ? 'default' : 'outline'}
-              onClick={() => setActiveView(view)}
-              className="capitalize"
-            >
-              {view}
-            </Button>
-          ))}
-        </div>
-      </div>
+  {/* Top Action Bar */}
+  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <Link href="/dashboard">
+      <Button variant="outline" size="sm">
+        ← Back to Dashboard
+      </Button>
+    </Link>
+
+    <div className="flex flex-wrap gap-2">
+      {(['billing', 'payments', 'subscription'] as const).map((view) => (
+        <Button
+          key={view}
+          variant={activeView === view ? 'default' : 'outline'}
+          onClick={() => setActiveView(view)}
+          className="capitalize"
+        >
+          {view}
+        </Button>
+      ))}
+    </div>
+  </div>
+
+  {/* Page Heading */}
+  <div>
+    <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">
+      Billing center
+    </p>
+
+    <h1 className="mt-2 text-3xl font-bold tracking-tight">
+      Billing, Payments, and Plans
+    </h1>
+
+    <p className="mt-2 max-w-2xl text-muted-foreground">
+      Review your active subscription, manage renewals, and download invoices from one clean workspace.
+    </p>
+  </div>
+
+</div>
 
       {renewalDays !== null && renewalDays <= 5 && (
         <Card className="border-amber-200 bg-amber-50">

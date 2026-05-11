@@ -141,6 +141,8 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
   const effectiveType =
     formData.type === '__manual__' ? customType.trim() : formData.type;
   const showComputerSpecs = ['Laptop', 'Desktop', 'Server'].includes(effectiveType);
+  const showStorageField = ['Laptop', 'Desktop', 'Server', 'USB HDD/SSD'].includes(effectiveType);
+  const showMiscStorage = ['Printer', 'Monitor', 'Router', 'Switch', 'UPS', 'TV', 'Network Rack'].includes(effectiveType);
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -163,6 +165,10 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
     onSubmit({
       ...formData,
       type: effectiveType,
+      processor: showComputerSpecs ? formData.processor : '',
+      ram: showComputerSpecs ? formData.ram : '',
+      storage: showComputerSpecs || showStorageField ? formData.storage : '',
+      osInstalled: showComputerSpecs ? formData.osInstalled : '',
       cost: parseFloat(formData.cost) || 0,
     });
     onOpenChange(false);
@@ -288,16 +294,6 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
                   />
                 </FieldGroup>
 
-                {/* Storage */}
-                <FieldGroup>
-                  <FieldLabel>HDD/SSD</FieldLabel>
-                  <Input
-                    placeholder="e.g., 512 GB SSD"
-                    value={formData.storage}
-                    onChange={(e) => handleChange('storage', e.target.value)}
-                  />
-                </FieldGroup>
-
                 {/* OS Installed */}
                 <FieldGroup>
                   <FieldLabel>OS Installed</FieldLabel>
@@ -308,6 +304,28 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
                   />
                 </FieldGroup>
               </>
+            )}
+
+            {showStorageField && !showComputerSpecs && (
+              <FieldGroup>
+                <FieldLabel>HDD/SSD</FieldLabel>
+                <Input
+                  placeholder="e.g., 512 GB SSD"
+                  value={formData.storage}
+                  onChange={(e) => handleChange('storage', e.target.value)}
+                />
+              </FieldGroup>
+            )}
+
+            {showMiscStorage && (
+              <FieldGroup>
+                <FieldLabel>Storage / Capacity</FieldLabel>
+                <Input
+                  placeholder="e.g., 2 TB, 8 GB, 24-Port"
+                  value={formData.storage}
+                  onChange={(e) => handleChange('storage', e.target.value)}
+                />
+              </FieldGroup>
             )}
 
             {/* Purchase Date */}

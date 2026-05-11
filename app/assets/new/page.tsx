@@ -50,6 +50,8 @@ export default function NewAssetPage() {
     cost: '',
     notes: '',
   });
+  const showComputerSpecs = ['Desktop', 'Laptop', 'Server'].includes(formData.type);
+  const showStorageField = formData.type === 'USB HDD/SSD';
 
   useEffect(() => {
     const sessionStr = localStorage.getItem('session');
@@ -90,10 +92,10 @@ export default function NewAssetPage() {
       serialNumber: formData.serialNumber,
       manufacturer: formData.manufacturer,
       model: formData.model,
-      processor: formData.processor || undefined,
-      ram: formData.ram || undefined,
-      storage: formData.storage || undefined,
-      osInstalled: formData.osInstalled || undefined,
+      processor: showComputerSpecs ? formData.processor || undefined : undefined,
+      ram: showComputerSpecs ? formData.ram || undefined : undefined,
+      storage: showComputerSpecs || showStorageField ? formData.storage || undefined : undefined,
+      osInstalled: showComputerSpecs ? formData.osInstalled || undefined : undefined,
       purchaseDate: formData.purchaseDate || new Date().toISOString().split('T')[0],
       warrantyExpiry: formData.warrantyExpiry || new Date().toISOString().split('T')[0],
       status: formData.status as Asset['status'],
@@ -204,18 +206,29 @@ export default function NewAssetPage() {
                   </FieldGroup>
                 </div>
 
-                <FieldGroup>
-                  <FieldLabel>Processor</FieldLabel>
-                  <Input value={formData.processor} onChange={(e) => handleChange('processor', e.target.value)} placeholder="Intel Core i7" />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>RAM / Storage / OS</FieldLabel>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <Input value={formData.ram} onChange={(e) => handleChange('ram', e.target.value)} placeholder="16 GB" />
+                {showComputerSpecs && (
+                  <>
+                    <FieldGroup>
+                      <FieldLabel>Processor</FieldLabel>
+                      <Input value={formData.processor} onChange={(e) => handleChange('processor', e.target.value)} placeholder="Intel Core i7" />
+                    </FieldGroup>
+                    <FieldGroup>
+                      <FieldLabel>RAM / Storage / OS</FieldLabel>
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <Input value={formData.ram} onChange={(e) => handleChange('ram', e.target.value)} placeholder="16 GB" />
+                        <Input value={formData.storage} onChange={(e) => handleChange('storage', e.target.value)} placeholder="512 GB SSD" />
+                        <Input value={formData.osInstalled} onChange={(e) => handleChange('osInstalled', e.target.value)} placeholder="Windows 11 Pro" />
+                      </div>
+                    </FieldGroup>
+                  </>
+                )}
+
+                {!showComputerSpecs && showStorageField && (
+                  <FieldGroup>
+                    <FieldLabel>HDD/SSD</FieldLabel>
                     <Input value={formData.storage} onChange={(e) => handleChange('storage', e.target.value)} placeholder="512 GB SSD" />
-                    <Input value={formData.osInstalled} onChange={(e) => handleChange('osInstalled', e.target.value)} placeholder="Windows 11 Pro" />
-                  </div>
-                </FieldGroup>
+                  </FieldGroup>
+                )}
 
                 <FieldGroup>
                   <FieldLabel>Notes</FieldLabel>

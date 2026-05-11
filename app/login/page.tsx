@@ -140,8 +140,9 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f5f6ef] text-slate-900">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(173,216,230,0.5),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(164,196,172,0.35),_transparent_28%),linear-gradient(135deg,#f9faf6_0%,#eef4ed_48%,#edf2f7_100%)]" />
+    <main className="relative min-h-screen overflow-hidden bg-transparent text-slate-900">
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(249,250,246,0.72)_0%,rgba(238,244,237,0.56)_48%,rgba(237,242,247,0.68)_100%)]" />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(173,216,230,0.35),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(164,196,172,0.24),_transparent_28%)]" />
 
       <div className="mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-4 py-8 md:px-8 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="hidden overflow-hidden rounded-[2rem] border border-white/80 bg-white/85 p-8 shadow-sm backdrop-blur lg:block">

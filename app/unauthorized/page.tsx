@@ -4,7 +4,7 @@ import { AlertCircle } from 'lucide-react';
 
 export default function UnauthorizedPage() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-transparent flex items-center justify-center p-4">
       <div className="max-w-md w-full text-center space-y-6">
         <div className="flex justify-center">
           <AlertCircle className="w-16 h-16 text-destructive" />

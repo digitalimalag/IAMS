@@ -14,7 +14,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground flex-col">
+    <div className="flex min-h-screen bg-transparent text-foreground flex-col">
       <TopNav onMenuToggle={() => setSidebarOpen((open) => !open)} />
       <SubscriptionReminder />
       <OnboardingChecklist />

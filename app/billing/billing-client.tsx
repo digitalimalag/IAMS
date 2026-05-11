@@ -136,7 +136,9 @@ export default function BillingClient({ initialPlan }: { initialPlan: Subscripti
   };
 
   return (
-    <main className="min-h-screen bg-[#f5f6ef] text-slate-900">
+    <main className="relative min-h-screen bg-transparent text-slate-900">
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(249,250,246,0.72)_0%,rgba(238,244,237,0.56)_48%,rgba(237,242,247,0.68)_100%)]" />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(173,216,230,0.28),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(164,196,172,0.22),_transparent_28%)]" />
       <div className="mx-auto grid min-h-screen max-w-7xl gap-8 px-5 py-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-10">
         <section className="space-y-6 rounded-[2rem] border border-white/80 bg-white/80 p-6 shadow-sm backdrop-blur">
           <div>
