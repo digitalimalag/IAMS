@@ -66,6 +66,7 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
     serialNumber: '',
     manufacturer: '',
     model: '',
+    designation: '',
     processor: '',
     ram: '',
     storage: '',
@@ -98,6 +99,7 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
         serialNumber: editingAsset.serialNumber,
         manufacturer: editingAsset.manufacturer,
         model: editingAsset.model,
+        designation: editingAsset.designation || '',
         processor: editingAsset.processor || '',
         ram: editingAsset.ram || '',
         storage: editingAsset.storage || '',
@@ -121,6 +123,7 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
         serialNumber: '',
         manufacturer: '',
         model: '',
+        designation: '',
         processor: '',
         ram: '',
         storage: '',
@@ -165,6 +168,7 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
     onSubmit({
       ...formData,
       type: effectiveType,
+      designation: formData.designation.trim(),
       processor: showComputerSpecs ? formData.processor : '',
       ram: showComputerSpecs ? formData.ram : '',
       storage: showComputerSpecs || showStorageField ? formData.storage : '',
@@ -269,6 +273,16 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
                 placeholder="e.g., XPS 15"
                 value={formData.model}
                 onChange={(e) => handleChange('model', e.target.value)}
+              />
+            </FieldGroup>
+
+            {/* Designation */}
+            <FieldGroup>
+              <FieldLabel>Designation</FieldLabel>
+              <Input
+                placeholder="e.g., Senior Designer"
+                value={formData.designation}
+                onChange={(e) => handleChange('designation', e.target.value)}
               />
             </FieldGroup>
 

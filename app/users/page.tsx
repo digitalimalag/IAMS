@@ -36,11 +36,13 @@ import { createAuthUser, deleteAuthUser, editAuthUser, listAuthUsers } from '@/l
 import type { User } from '@/lib/auth';
 import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { getPlanConfig, normalizePlan } from '@/lib/subscription';
+import { formatDateYMD } from '@/lib/date';
 
 type UserFormState = {
   name: string;
   email: string;
   phone: string;
+  designation: string;
   role: UserRole;
   department: string;
   password: string;
@@ -50,6 +52,7 @@ const emptyUserForm: UserFormState = {
   name: '',
   email: '',
   phone: '',
+  designation: '',
   role: 'employee',
   department: '',
   password: '',
@@ -95,7 +98,7 @@ function UsersContent() {
         const supabase = createSupabaseBrowserClient();
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id,user_id,organization_id,full_name,email,phone,department,role,is_active,created_at,last_login_at')
+          .select('id,user_id,organization_id,full_name,email,phone,title,department,role,is_active,created_at,last_login_at')
           .eq('organization_id', parsedSession.organizationId)
           .order('created_at', { ascending: false });
 
@@ -104,6 +107,7 @@ function UsersContent() {
           email: profile.email,
           name: profile.full_name,
           phone: profile.phone || undefined,
+          designation: profile.title || '',
           organizationId: profile.organization_id,
           role: profile.role,
           department: profile.department || '',
@@ -194,6 +198,7 @@ function UsersContent() {
       name: user.name,
       email: user.email,
       phone: user.phone || '',
+      designation: user.designation || '',
       role: user.role,
       department: user.department,
       password: '',
@@ -223,6 +228,7 @@ function UsersContent() {
             email: newUser.email,
             password: newUser.password,
             phone: newUser.phone,
+            designation: newUser.designation,
             department: newUser.department,
             role: newUser.role,
           }),
@@ -251,6 +257,7 @@ function UsersContent() {
       password: newUser.password,
       name: newUser.name,
       phone: newUser.phone,
+      designation: newUser.designation,
       organizationId: session?.organizationId,
       role: newUser.role,
       department: newUser.department,
@@ -280,6 +287,7 @@ function UsersContent() {
             fullName: editUser.name,
             email: editUser.email,
             phone: editUser.phone,
+            designation: editUser.designation,
             role: editUser.role,
             department: editUser.department,
             password: editUser.password || undefined,
@@ -306,6 +314,7 @@ function UsersContent() {
       email: editUser.email,
       name: editUser.name,
       phone: editUser.phone,
+      designation: editUser.designation,
       organizationId: session?.organizationId,
       role: editUser.role,
       department: editUser.department,
@@ -476,8 +485,8 @@ function UsersContent() {
                     <TableHead className="w-[12%] text-xs uppercase tracking-wide">Role</TableHead>
                     <TableHead className="w-[15%] text-xs uppercase tracking-wide">Department</TableHead>
                     <TableHead className="w-[10%] text-xs uppercase tracking-wide">Status</TableHead>
-                    <TableHead className="w-[14%] text-xs uppercase tracking-wide">Last Login</TableHead>
-                    <TableHead className="w-[8%] text-right text-xs uppercase tracking-wide">Actions</TableHead>
+                    <TableHead className="w-[13%] text-xs uppercase tracking-wide">Last Login</TableHead>
+                    <TableHead className="w-[7%] text-right text-xs uppercase tracking-wide">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -510,7 +519,7 @@ function UsersContent() {
                       <TableCell className="align-top py-4 text-sm text-muted-foreground">
                         <div className="flex min-w-0 items-start gap-2">
                           <Calendar className="mt-0.5 h-4 w-4 shrink-0" />
-                          <span className="block max-w-[220px] truncate">{user.lastLogin || '-'}</span>
+                          <span className="block max-w-[140px] truncate">{user.lastLogin ? formatDateYMD(user.lastLogin) : '-'}</span>
                         </div>
                       </TableCell>
                       <TableCell className="align-top py-4 text-right whitespace-nowrap">
@@ -568,6 +577,14 @@ function UsersContent() {
               <div className="space-y-2">
                 <p className="text-sm font-medium">Phone</p>
                 <Input value={newUser.phone} onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Designation</p>
+                <Input
+                  value={newUser.designation}
+                  onChange={(e) => setNewUser({ ...newUser, designation: e.target.value })}
+                  placeholder="e.g., IT Support Specialist"
+                />
               </div>
               <div className="space-y-2">
                 <p className="text-sm font-medium">Department</p>
@@ -636,6 +653,14 @@ function UsersContent() {
               <div className="space-y-2">
                 <p className="text-sm font-medium">Phone</p>
                 <Input value={editUser.phone} onChange={(e) => setEditUser({ ...editUser, phone: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Designation</p>
+                <Input
+                  value={editUser.designation}
+                  onChange={(e) => setEditUser({ ...editUser, designation: e.target.value })}
+                  placeholder="e.g., Senior Analyst"
+                />
               </div>
               <div className="space-y-2">
                 <p className="text-sm font-medium">Department</p>

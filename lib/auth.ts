@@ -5,6 +5,7 @@ export interface User {
   email: string;
   name: string;
   phone?: string;
+  designation?: string;
   organizationId?: string;
   role: UserRole;
   department: string;
@@ -27,6 +28,7 @@ const seedUsers: AuthUser[] = [
     password: hashPassword('admin123'),
     name: 'Admin User',
     phone: '+1-555-0001',
+    designation: 'Master Admin',
     organizationId: 'org-default',
     role: 'master_admin',
     department: 'IT Support',
@@ -39,6 +41,7 @@ const seedUsers: AuthUser[] = [
     password: hashPassword('manager123'),
     name: 'Department Manager',
     phone: '+1-555-0002',
+    designation: 'Operations Manager',
     organizationId: 'org-default',
     role: 'admin',
     department: 'Operations',
@@ -51,6 +54,7 @@ const seedUsers: AuthUser[] = [
     password: hashPassword('employee123'),
     name: 'John Employee',
     phone: '+1-555-0003',
+    designation: 'IT Support Specialist',
     organizationId: 'org-default',
     role: 'employee',
     department: 'IT Support',
@@ -117,6 +121,7 @@ export function createAuthUser(input: {
   password: string;
   name: string;
   phone?: string;
+  designation?: string;
   organizationId?: string;
   role: UserRole;
   department: string;
@@ -141,6 +146,7 @@ export function createAuthUser(input: {
     password: hashPassword(input.password),
     name: input.name.trim(),
     phone: input.phone?.trim() || undefined,
+    designation: input.designation?.trim() || undefined,
     organizationId,
     role: input.role,
     department: input.department.trim(),
@@ -157,6 +163,7 @@ export function editAuthUser(
     email: string;
     name: string;
     phone?: string;
+    designation?: string;
     organizationId?: string;
     role: UserRole;
     department: string;
@@ -187,6 +194,7 @@ export function editAuthUser(
     email,
     name: input.name.trim(),
     phone: input.phone?.trim() || undefined,
+    designation: input.designation?.trim() || undefined,
     organizationId: organizationId || current.organizationId || 'org-default',
     role: input.role,
     department: input.department.trim(),

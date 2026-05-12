@@ -115,6 +115,7 @@ export interface Asset {
   serialNumber: string;
   manufacturer: string;
   model: string;
+  designation?: string;
   processor?: string;
   ram?: string;
   storage?: string;
@@ -155,6 +156,7 @@ export interface Issue {
   priority: 'Low' | 'Medium' | 'High';
   assetId: string;
   assignedTo: string;
+  designation?: string;
   createdByUserId?: string;
   createdDate: string;
   dueDate: string;
@@ -369,6 +371,7 @@ export const mockIssues: Issue[] = [
     priority: 'High',
     assetId: 'AST-001',
     assignedTo: 'Mike Chen',
+    designation: 'IT Support Specialist',
     createdDate: '2024-04-08',
     dueDate: '2024-04-09',
     department: 'IT Support',
@@ -381,6 +384,7 @@ export const mockIssues: Issue[] = [
     priority: 'High',
     assetId: 'AST-004',
     assignedTo: 'Lisa Park',
+    designation: 'Infrastructure Engineer',
     createdDate: '2024-04-05',
     dueDate: '2024-04-12',
     department: 'Infrastructure',
@@ -393,6 +397,7 @@ export const mockIssues: Issue[] = [
     priority: 'Medium',
     assetId: 'AST-003',
     assignedTo: 'Mike Chen',
+    designation: 'Operations Executive',
     createdDate: '2024-04-07',
     dueDate: '2024-04-11',
     department: 'Operations',
@@ -405,6 +410,7 @@ export const mockIssues: Issue[] = [
     priority: 'Medium',
     assetId: 'NET-004',
     assignedTo: 'David Smith',
+    designation: 'Security Officer',
     createdDate: '2024-04-08',
     dueDate: '2024-04-10',
     department: 'Security',
@@ -712,7 +718,7 @@ export const mockAssetHandovers: AssetHandover[] = [
     id: 'HO-001',
     employeeId: 'USR-005',
     employeeName: 'Mike Operations',
-    employeeRole: 'Employee',
+    employeeRole: 'Operations Executive',
     resignationDate: '2024-04-15',
     department: 'Operations',
     assetIds: ['AST-001', 'AST-003'],

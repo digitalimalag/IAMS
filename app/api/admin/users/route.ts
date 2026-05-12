@@ -82,11 +82,12 @@ export async function POST(request: NextRequest) {
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '');
     const phone = String(body.phone || '').trim();
+    const designation = String(body.designation || '').trim();
     const department = String(body.department || '').trim();
     const role = String(body.role || 'employee');
 
-    if (!fullName || !email || !password || !department) {
-      return NextResponse.json({ error: 'Name, email, password, and department are required' }, { status: 400 });
+    if (!fullName || !email || !password || !designation || !department) {
+      return NextResponse.json({ error: 'Name, email, designation, password, and department are required' }, { status: 400 });
     }
 
     const serviceClient = createSupabaseServiceRoleClient();
@@ -94,13 +95,14 @@ export async function POST(request: NextRequest) {
       email,
       password,
       email_confirm: true,
-      user_metadata: {
-        organization_id: profile.organization_id,
-        full_name: fullName,
-        phone,
-        department,
-        role,
-      },
+        user_metadata: {
+          organization_id: profile.organization_id,
+          full_name: fullName,
+          phone,
+          designation,
+          department,
+          role,
+        },
     });
 
     if (createError || !createdUser.user) {
@@ -116,8 +118,8 @@ export async function POST(request: NextRequest) {
         full_name: fullName,
         email,
         phone: phone || null,
+        title: designation,
         department,
-        title: role,
         role,
         is_active: true,
       },
@@ -153,12 +155,13 @@ export async function POST(request: NextRequest) {
       action: 'user.created',
       entity_type: 'user',
       entity_id: createdUser.user.id,
-      metadata: {
-        email,
-        name: fullName,
-        role,
-        department,
-      },
+        metadata: {
+          email,
+          name: fullName,
+          designation,
+          role,
+          department,
+        },
     });
 
     if (auditError) {
@@ -174,6 +177,7 @@ export async function POST(request: NextRequest) {
         email,
         name: fullName,
         phone,
+        designation,
         organizationId: profile.organization_id,
         role,
         department,

@@ -41,7 +41,7 @@ const allNavItems: NavItem[] = [
   { category: 'Inventory Management' },
   { label: 'Assets', href: '/assets', icon: Package },
   { label: 'Network Devices', href: '/network-devices', icon: Network },
-  { label: 'Issues', href: '/issues', icon: AlertCircle },
+  { label: 'IT Help Desk Ticketing', href: '/issues', icon: AlertCircle },
   { category: 'Operations' },
   { label: 'Departments', href: '/companies', icon: Building2, adminOnly: true },
   { label: 'Vendors', href: '/vendors', icon: Briefcase, adminOnly: true },

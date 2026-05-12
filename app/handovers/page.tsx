@@ -17,6 +17,7 @@ import { mockAssetHandovers, mockAssets, mockDepartments } from '@/lib/mock-data
 import type { AssetHandover } from '@/lib/mock-data';
 import type { Session } from '@/lib/auth';
 import { downloadHandoverPdf } from '@/lib/handover-pdf';
+import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 function HandoversContent() {
   const [session, setSession] = useState<Session | null>(null);
@@ -203,7 +204,26 @@ function HandoversContent() {
   };
 
   const exportHandoverPdf = async (handover: AssetHandover) => {
-    await downloadHandoverPdf(handover, mockAssets, session?.organizationName);
+    let resolvedLogo = session?.organizationLogoUrl || '';
+    let resolvedCompanyName = session?.organizationName || 'Digital IMALAG IT Assets Management SaaS';
+
+    if (!resolvedLogo && session?.organizationId && isSupabaseConfigured()) {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const { data: orgRow } = await supabase
+          .from('organizations')
+          .select('name, logo_url')
+          .eq('id', session.organizationId)
+          .single();
+
+        resolvedLogo = orgRow?.logo_url || '';
+        resolvedCompanyName = orgRow?.name || resolvedCompanyName;
+      } catch {
+        resolvedLogo = '';
+      }
+    }
+
+    await downloadHandoverPdf(handover, mockAssets, resolvedCompanyName, resolvedLogo);
   };
 
   return (
@@ -280,7 +300,7 @@ function HandoversContent() {
                       <div className="flex items-start justify-between">
                         <div>
                           <h3 className="font-semibold">{handover.employeeName}</h3>
-                          <p className="text-sm text-muted-foreground">{handover.department} • {handover.employeeRole}</p>
+                          <p className="text-sm text-muted-foreground">{handover.department} • Designation: {handover.employeeRole}</p>
                         </div>
                         <Badge className={`${getStatusColor(handover.handoverStatus)} text-white`}>
                           {handover.handoverStatus}
@@ -365,7 +385,7 @@ function HandoversContent() {
                   />
                 </FieldGroup>
                 <FieldGroup>
-                  <FieldLabel>Employee Role</FieldLabel>
+                  <FieldLabel>Designation</FieldLabel>
                   <Input
                     value={createForm.employeeRole}
                     onChange={(e) => setCreateForm({ ...createForm, employeeRole: e.target.value })}
@@ -462,7 +482,7 @@ function HandoversContent() {
                 <div className="border border-border rounded-lg p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Employee</p>
                   <p className="font-semibold">{activeHandover.employeeName}</p>
-                  <p className="text-sm text-muted-foreground">{activeHandover.employeeRole}</p>
+                  <p className="text-sm text-muted-foreground">Designation: {activeHandover.employeeRole}</p>
                 </div>
                 <div className="border border-border rounded-lg p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Department</p>

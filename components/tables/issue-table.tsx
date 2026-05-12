@@ -84,6 +84,7 @@ export function IssueTable({ issues, onEdit, onDelete }: IssueTableProps) {
             <TableHead className="text-xs uppercase tracking-wide">Status</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">Priority</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">Assigned To</TableHead>
+            <TableHead className="text-xs uppercase tracking-wide">Designation</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">Created</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">Due Date</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">Department</TableHead>
@@ -110,6 +111,9 @@ export function IssueTable({ issues, onEdit, onDelete }: IssueTableProps) {
                 </Badge>
               </TableCell>
               <TableCell className="p-3 text-sm">{issue.assignedTo}</TableCell>
+              <TableCell className="p-3 text-sm text-muted-foreground">
+                <span className="block max-w-[180px] truncate">{issue.designation || '-'}</span>
+              </TableCell>
               <TableCell className="p-3 text-sm text-muted-foreground">
                 {formatDateYMD(issue.createdDate)}
               </TableCell>

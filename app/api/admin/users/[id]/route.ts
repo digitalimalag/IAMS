@@ -62,25 +62,27 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const fullName = String(body.fullName || '').trim();
     const email = String(body.email || '').trim().toLowerCase();
     const phone = String(body.phone || '').trim();
+    const designation = String(body.designation || '').trim();
     const department = String(body.department || '').trim();
     const role = String(body.role || 'employee');
     const password = String(body.password || '');
 
-    if (!fullName || !email || !department) {
-      return NextResponse.json({ error: 'Name, email, and department are required' }, { status: 400 });
+    if (!fullName || !email || !designation || !department) {
+      return NextResponse.json({ error: 'Name, email, designation, and department are required' }, { status: 400 });
     }
 
     const serviceClient = createSupabaseServiceRoleClient();
     const { data: updatedUser, error: updateError } = await serviceClient.auth.admin.updateUserById(id, {
       email,
       password: password || undefined,
-      user_metadata: {
-        organization_id: profile.organization_id,
-        full_name: fullName,
-        phone,
-        department,
-        role,
-      },
+        user_metadata: {
+          organization_id: profile.organization_id,
+          full_name: fullName,
+          phone,
+          designation,
+          department,
+          role,
+        },
     });
 
     if (updateError || !updatedUser.user) {
@@ -91,8 +93,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       full_name: fullName,
       email,
       phone: phone || null,
+      title: designation,
       department,
-      title: role,
       role,
     }).eq('user_id', id);
 
@@ -126,6 +128,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         email,
         name: fullName,
         phone,
+        designation,
         organizationId: profile.organization_id,
         role,
         department,

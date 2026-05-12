@@ -171,6 +171,7 @@ export function generateAssetIssueFormPDF(issue: Issue, asset: Asset | null) {
 
   ctx.font = '12px Arial';
   drawText(`Assigned To: ${issue.assignedTo}`, 40, 12);
+  drawText(`Designation: ${issue.designation || '-'}`, 40, 12);
   drawText(`Department: ${issue.department}`, 40, 12);
   drawText(`Created Date: ${issue.createdDate}`, 40, 12);
   drawText(`Due Date: ${issue.dueDate}`, 40, 12);

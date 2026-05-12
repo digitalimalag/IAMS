@@ -47,6 +47,7 @@ export function AddIssueModal({
     priority: 'Medium' as any,
     assetId: 'none',
     assignedTo: '',
+    designation: '',
     createdDate: '',
     dueDate: '',
     department: '',
@@ -62,6 +63,7 @@ export function AddIssueModal({
         priority: editingIssue.priority,
         assetId: editingIssue.assetId,
         assignedTo: editingIssue.assignedTo,
+        designation: editingIssue.designation || '',
         createdDate: editingIssue.createdDate,
         dueDate: editingIssue.dueDate,
         department: editingIssue.department,
@@ -75,6 +77,7 @@ export function AddIssueModal({
         priority: 'Medium',
         assetId: 'none',
         assignedTo: '',
+        designation: '',
         createdDate: formatDateYMD(new Date()),
         dueDate: '',
         department: defaultDepartment || '',
@@ -203,6 +206,15 @@ export function AddIssueModal({
                   </SelectContent>
                 </Select>
               )}
+            </FieldGroup>
+
+            <FieldGroup>
+              <FieldLabel>Designation</FieldLabel>
+              <Input
+                placeholder="e.g., Support Specialist"
+                value={formData.designation}
+                onChange={(e) => handleChange('designation', e.target.value)}
+              />
             </FieldGroup>
 
             {/* Due Date */}
