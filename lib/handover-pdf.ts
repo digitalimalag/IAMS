@@ -93,53 +93,93 @@ export async function createHandoverPdfBytes(
     y -= 14;
   };
 
-  const labelValue = (label: string, value: string, x: number, boxWidth: number) => {
-    const labelY = y;
-    page.drawText(label.toUpperCase(), {
-      x,
-      y: labelY,
-      size: 8.5,
-      font: bold,
-      color: rgb(0.45, 0.52, 0.62),
-    });
-    const lines = wrapText(regular, value || '-', 10.5, boxWidth);
-    lines.forEach((line, idx) => {
-      page.drawText(line, {
-        x,
-        y: labelY - 14 - idx * 12,
-        size: 10.5,
-        font: regular,
-        color: rgb(0.08, 0.12, 0.2),
-      });
-    });
-    return labelY - 16 - lines.length * 12;
-  };
+  y = y - 22;
+  sectionTitle('Employee Summary');
+  const summaryCardTop = y + 4;
+  const summaryCardHeight = 150;
+  const empLeft = MARGIN_X + 16;
+  const empRight = MARGIN_X + 16 + leftCol + 24;
+  const fieldWidth = leftCol;
+  const fieldValueWidth = fieldWidth - 8;
+  const summaryRows = [
+    {
+      label: 'Employee',
+      value: handover.employeeName,
+      x: empLeft,
+      y: summaryCardTop - 10,
+      width: fieldWidth,
+    },
+    {
+      label: 'Handover ID',
+      value: handover.id,
+      x: empRight,
+      y: summaryCardTop - 10,
+      width: fieldWidth,
+    },
+    {
+      label: 'Role',
+      value: handover.employeeRole,
+      x: empLeft,
+      y: summaryCardTop - 56,
+      width: fieldWidth,
+    },
+    {
+      label: 'Resignation Date',
+      value: handover.resignationDate,
+      x: empRight,
+      y: summaryCardTop - 56,
+      width: fieldWidth,
+    },
+    {
+      label: 'Department',
+      value: handover.department,
+      x: empLeft,
+      y: summaryCardTop - 102,
+      width: fieldWidth,
+    },
+    {
+      label: 'Status',
+      value: handover.handoverStatus,
+      x: empRight,
+      y: summaryCardTop - 102,
+      width: fieldWidth,
+    },
+  ];
 
   page.drawRectangle({
     x: MARGIN_X,
-    y: y - 100,
+    y: summaryCardTop - summaryCardHeight,
     width,
-    height: 96,
+    height: summaryCardHeight,
     borderColor: rgb(0.86, 0.89, 0.93),
     borderWidth: 1,
     color: rgb(0.98, 0.99, 1),
   });
 
-  y = y - 22;
-  sectionTitle('Employee Summary');
-  const empLeft = MARGIN_X + 16;
-  const empRight = MARGIN_X + 16 + leftCol + 24;
-  let leftY = y;
-  let rightY = y;
-  leftY = labelValue('Employee', handover.employeeName, empLeft, leftCol);
-  leftY = labelValue('Role', handover.employeeRole, empLeft, leftCol);
-  leftY = labelValue('Department', handover.department, empLeft, leftCol);
+  summaryRows.forEach((field) => {
+    page.drawText(field.label.toUpperCase(), {
+      x: field.x,
+      y: field.y,
+      size: 8.5,
+      font: bold,
+      color: rgb(0.45, 0.52, 0.62),
+    });
 
-  rightY = labelValue('Handover ID', handover.id, empRight, rightCol);
-  rightY = labelValue('Resignation Date', handover.resignationDate, empRight, rightCol);
-  rightY = labelValue('Status', handover.handoverStatus, empRight, rightCol);
+    const lines = wrapText(field.label === 'Status' ? bold : regular, field.value || '-', 10.5, fieldValueWidth);
+    lines.forEach((line, idx) => {
+      page.drawText(line, {
+        x: field.x,
+        y: field.y - 14 - idx * 12,
+        size: 10.5,
+        font: field.label === 'Status' ? bold : regular,
+        color: field.label === 'Status'
+          ? rgb(0.08, 0.5, 0.24)
+          : rgb(0.08, 0.12, 0.2),
+      });
+    });
+  });
 
-  y = Math.min(leftY, rightY) - 18;
+  y = summaryCardTop - summaryCardHeight - 18;
 
   sectionTitle('Returned Assets');
   page.drawRectangle({
@@ -159,30 +199,47 @@ export async function createHandoverPdfBytes(
 
   const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
   handover.assetDetails.forEach((item, index) => {
-    if (y < 120) {
+    const asset = assetsById.get(item.id);
+    const tag = asset?.assetTag || item.id;
+    const tagLines = wrapText(regular, tag, 9.5, 92);
+    const nameLines = wrapText(regular, item.name, 9.5, 194);
+    const typeLines = wrapText(regular, item.type, 9.5, 82);
+    const statusLines = wrapText(bold, item.status, 9.5, 72);
+    const contentLines = Math.max(tagLines.length, nameLines.length, typeLines.length, statusLines.length);
+    const rowHeight = Math.max(28, contentLines * 12 + 10);
+
+    if (y - rowHeight < 120) {
       page = pdf.addPage(PAGE_SIZE);
       pageNo += 1;
       drawHeader(page, pageNo);
       y = PAGE_SIZE[1] - 110;
     }
 
-    const asset = assetsById.get(item.id);
-    const tag = asset?.assetTag || item.id;
-    const rowY = y - 22;
+    const rowY = y - rowHeight;
     page.drawRectangle({
       x: MARGIN_X,
       y: rowY,
       width,
-      height: 22,
+      height: rowHeight,
       borderColor: rgb(0.9, 0.92, 0.95),
       borderWidth: 0.5,
       color: index % 2 === 0 ? rgb(1, 1, 1) : rgb(0.99, 0.995, 1),
     });
-    page.drawText(tag, { x: MARGIN_X + 12, y: rowY + 7, size: 9.5, font: bold, color: rgb(0.11, 0.16, 0.26) });
-    page.drawText(item.name, { x: MARGIN_X + 118, y: rowY + 7, size: 9.5, font: regular, color: rgb(0.11, 0.16, 0.26), maxWidth: 190 });
-    page.drawText(item.type, { x: MARGIN_X + 326, y: rowY + 7, size: 9.5, font: regular, color: rgb(0.11, 0.16, 0.26), maxWidth: 82 });
-    page.drawText(item.status, { x: MARGIN_X + 420, y: rowY + 7, size: 9.5, font: bold, color: item.status === 'Returned' ? rgb(0.08, 0.5, 0.24) : rgb(0.72, 0.45, 0.05) });
-    y = rowY - 2;
+
+    const cellTop = rowY + rowHeight - 14;
+    const drawLines = (lines: string[], x: number, fontRef: any, color: any) => {
+      let lineY = cellTop;
+      lines.forEach((line) => {
+        page.drawText(line, { x, y: lineY, size: 9.5, font: fontRef, color });
+        lineY -= 11.5;
+      });
+    };
+
+    drawLines(tagLines, MARGIN_X + 12, bold, rgb(0.11, 0.16, 0.26));
+    drawLines(nameLines, MARGIN_X + 118, regular, rgb(0.11, 0.16, 0.26));
+    drawLines(typeLines, MARGIN_X + 326, regular, rgb(0.11, 0.16, 0.26));
+    drawLines(statusLines, MARGIN_X + 420, bold, item.status === 'Returned' ? rgb(0.08, 0.5, 0.24) : rgb(0.72, 0.45, 0.05));
+    y = rowY - 4;
   });
 
   y -= 18;
