@@ -8,6 +8,14 @@ function formatStorageAddons(storageAddons?: { capacity: string; mediaType: 'HDD
     .join(', ');
 }
 
+function formatRamModules(ramModules?: { capacity: string; ramType: string; ramMhz: string }[]) {
+  if (!ramModules || ramModules.length === 0) return '-';
+  return ramModules
+    .map((module) => [module.capacity, module.ramType, module.ramMhz ? `${module.ramMhz} MHz` : ''].filter(Boolean).join(' '))
+    .filter(Boolean)
+    .join(', ');
+}
+
 // CSV Export Functions
 export function exportToCSV<T>(data: T[], filename: string) {
   if (data.length === 0) {
@@ -50,7 +58,9 @@ export function exportAssetsToCSV(assets: Asset[]) {
     'Manufacturer': asset.manufacturer,
     'Model': asset.model,
     'Processor': asset.processor || '-',
-    'RAM': asset.ram || '-',
+    'RAM': formatRamModules(asset.ramModules) !== '-' ? formatRamModules(asset.ramModules) : (asset.ram || '-'),
+    'RAM Type': asset.ramType || '-',
+    'RAM MHz': asset.ramMhz || '-',
     'Storage': formatStorageAddons(asset.storageAddons) !== '-' ? formatStorageAddons(asset.storageAddons) : (asset.storage || '-'),
     'OS': asset.osInstalled || '-',
     'Status': asset.status,

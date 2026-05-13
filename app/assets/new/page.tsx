@@ -58,6 +58,15 @@ export default function NewAssetPage() {
       designation: values.designation,
       processor: values.processor || undefined,
       ram: values.ram || undefined,
+      ramType: values.ramType || undefined,
+      ramMhz: values.ramMhz || undefined,
+      ramModules: values.ramModules
+        .map((module) => ({
+          capacity: module.capacity.trim(),
+          ramType: module.ramType || 'DDR-IV',
+          ramMhz: module.ramMhz.trim(),
+        }))
+        .filter((module) => module.capacity),
       storage: values.storage || undefined,
       storageAddons: values.storageAddons
         .map((addon) => ({

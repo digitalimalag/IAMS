@@ -47,6 +47,15 @@ export default function EditAssetPage() {
       designation: asset.designation || '',
       processor: asset.processor || '',
       ram: asset.ram || '',
+      ramType: asset.ramType || '',
+      ramMhz: asset.ramMhz || '',
+      ramModules: Array.isArray(asset.ramModules) && asset.ramModules.length > 0
+        ? asset.ramModules.map((module) => ({
+            capacity: module.capacity,
+            ramType: module.ramType,
+            ramMhz: module.ramMhz,
+          }))
+        : undefined,
       storage: asset.storage || '',
       storageAddons: Array.isArray(asset.storageAddons) && asset.storageAddons.length > 0
         ? asset.storageAddons.map((addon) => ({
@@ -88,6 +97,15 @@ export default function EditAssetPage() {
       designation: values.designation,
       processor: values.processor || undefined,
       ram: values.ram || undefined,
+      ramType: values.ramType || undefined,
+      ramMhz: values.ramMhz || undefined,
+      ramModules: values.ramModules
+        .map((module) => ({
+          capacity: module.capacity.trim(),
+          ramType: module.ramType || 'DDR-IV',
+          ramMhz: module.ramMhz.trim(),
+        }))
+        .filter((module) => module.capacity),
       storage: values.storage || undefined,
       storageAddons: values.storageAddons
         .map((addon) => ({

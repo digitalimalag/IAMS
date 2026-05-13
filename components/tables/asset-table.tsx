@@ -28,6 +28,17 @@ interface AssetTableProps {
 }
 
 export function AssetTable({ assets, onEdit, onTransfer, onDelete }: AssetTableProps) {
+  const formatRam = (asset: Asset) => {
+    if (Array.isArray(asset.ramModules) && asset.ramModules.length > 0) {
+      return asset.ramModules
+        .map((module) => [module.capacity, module.ramType, module.ramMhz ? `${module.ramMhz} MHz` : ''].filter(Boolean).join(' '))
+        .filter(Boolean)
+        .join(', ');
+    }
+    const parts = [asset.ram, asset.ramType, asset.ramMhz ? `${asset.ramMhz} MHz` : ''].filter(Boolean).join(' ');
+    return parts || '-';
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active':
@@ -96,7 +107,7 @@ export function AssetTable({ assets, onEdit, onTransfer, onDelete }: AssetTableP
                 </Badge>
               </TableCell>
               <TableCell className="p-3 text-sm text-muted-foreground">{asset.processor || '-'}</TableCell>
-              <TableCell className="p-3 text-sm text-muted-foreground">{asset.ram || '-'}</TableCell>
+              <TableCell className="p-3 text-sm text-muted-foreground">{formatRam(asset)}</TableCell>
               <TableCell className="p-3 text-sm text-muted-foreground">{asset.storage || '-'}</TableCell>
               <TableCell className="p-3 text-sm text-muted-foreground">{asset.osInstalled || '-'}</TableCell>
               <TableCell>

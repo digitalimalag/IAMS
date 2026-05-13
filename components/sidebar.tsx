@@ -51,6 +51,7 @@ const allNavItems: NavItem[] = [
   { label: 'Users', href: '/users', icon: Users, masterAdminOnly: true },
   { label: 'Reports', href: '/reports', icon: BarChart3, adminOnly: true },
   { label: 'Audit Logs', href: '/audit-logs', icon: FileText, adminOnly: true },
+  { label: 'License Manager', href: '/licenses', icon: FileText, adminOnly: true },
   { label: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
   { category: 'Billing & Plans', masterAdminOnly: true },
   { label: 'Billing', href: '/billing', icon: BadgeDollarSign, masterAdminOnly: true },

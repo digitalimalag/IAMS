@@ -118,6 +118,9 @@ export interface Asset {
   designation?: string;
   processor?: string;
   ram?: string;
+  ramType?: 'DDR-II' | 'DDR-III' | 'DDR-IV' | 'DDR-V';
+  ramMhz?: string;
+  ramModules?: { capacity: string; ramType: 'DDR-II' | 'DDR-III' | 'DDR-IV' | 'DDR-V'; ramMhz: string }[];
   storage?: string;
   storageAddons?: { capacity: string; mediaType: 'HDD' | 'SSD'; quantity: number }[];
   osInstalled?: string;
@@ -149,6 +152,23 @@ export interface NetworkDevice {
   firmwareVersion: string;
   department: string;
   assignedToUserId?: string;
+}
+
+export interface LicenseRecord {
+  id: string;
+  licenseType: 'OS' | 'Software' | 'Firewall' | 'Other';
+  licenseOf: string;
+  serialNumber: string;
+  purchasedDate: string;
+  expiryDate: string;
+  purchasedFrom: 'Vendor' | 'Online';
+  contactPerson: string;
+  contactNumber: string;
+  website: string;
+  address: string;
+  vendorName: string;
+  notes?: string;
+  createdByUserId?: string;
 }
 
 export interface Issue {
@@ -207,6 +227,12 @@ export const mockAssets: Asset[] = [
     model: 'XPS 15',
     processor: 'Intel Core i7-13700H',
     ram: '32 GB',
+    ramType: 'DDR-IV',
+    ramMhz: '3200',
+    ramModules: [
+      { capacity: '16 GB', ramType: 'DDR-IV', ramMhz: '3200' },
+      { capacity: '16 GB', ramType: 'DDR-IV', ramMhz: '3200' },
+    ],
     storage: '512 GB SSD',
     osInstalled: 'Windows 11 Pro',
     purchaseDate: '2023-01-15',
@@ -231,6 +257,9 @@ export const mockAssets: Asset[] = [
     model: 'EliteDesk 800',
     processor: 'Intel Core i5-12400',
     ram: '16 GB',
+    ramType: 'DDR-IV',
+    ramMhz: '3200',
+    ramModules: [{ capacity: '16 GB', ramType: 'DDR-IV', ramMhz: '3200' }],
     storage: '256 GB SSD',
     osInstalled: 'Windows Server 2022',
     purchaseDate: '2022-06-20',
@@ -273,6 +302,14 @@ export const mockAssets: Asset[] = [
     model: 'ThinkSystem SR645',
     processor: 'AMD EPYC 7313',
     ram: '128 GB',
+    ramType: 'DDR-IV',
+    ramMhz: '3200',
+    ramModules: [
+      { capacity: '32 GB', ramType: 'DDR-IV', ramMhz: '3200' },
+      { capacity: '32 GB', ramType: 'DDR-IV', ramMhz: '3200' },
+      { capacity: '32 GB', ramType: 'DDR-IV', ramMhz: '3200' },
+      { capacity: '32 GB', ramType: 'DDR-IV', ramMhz: '3200' },
+    ],
     storage: '2 TB SSD',
     osInstalled: 'Ubuntu Server 22.04',
     purchaseDate: '2021-11-05',
@@ -296,6 +333,13 @@ export const mockAssets: Asset[] = [
     model: 'MacBook Pro 14"',
     processor: 'Apple M3 Max',
     ram: '36 GB',
+    ramType: 'DDR-IV',
+    ramMhz: '3200',
+    ramModules: [
+      { capacity: '12 GB', ramType: 'DDR-IV', ramMhz: '3200' },
+      { capacity: '12 GB', ramType: 'DDR-IV', ramMhz: '3200' },
+      { capacity: '12 GB', ramType: 'DDR-IV', ramMhz: '3200' },
+    ],
     storage: '1 TB SSD',
     osInstalled: 'macOS Sonoma',
     purchaseDate: '2023-09-01',
@@ -361,6 +405,52 @@ export const mockNetworkDevices: NetworkDevice[] = [
     lastSeen: '2024-04-08T15:20:00Z',
     firmwareVersion: '3.1.9',
     department: 'Security',
+  },
+];
+
+// Mock Licenses
+export const mockLicenses: LicenseRecord[] = [
+  {
+    id: 'LIC-001',
+    licenseType: 'OS',
+    licenseOf: 'Windows 11 Pro',
+    serialNumber: 'WIN11-PRO-001',
+    purchasedDate: '2024-01-15',
+    expiryDate: '2027-01-15',
+    purchasedFrom: 'Vendor',
+    contactPerson: 'Dell Licensing Team',
+    contactNumber: '+91-99999-11111',
+    website: 'www.dell.com',
+    address: '1 Dell Way, Round Rock, TX 78682',
+    vendorName: 'Dell Technologies',
+  },
+  {
+    id: 'LIC-002',
+    licenseType: 'Software',
+    licenseOf: 'Microsoft 365 Business Standard',
+    serialNumber: 'M365-BS-2024-004',
+    purchasedDate: '2024-03-01',
+    expiryDate: '2025-03-01',
+    purchasedFrom: 'Online',
+    contactPerson: 'Microsoft Billing',
+    contactNumber: '+1-800-555-0100',
+    website: 'www.microsoft.com',
+    address: 'One Microsoft Way, Redmond, WA 98052',
+    vendorName: 'Microsoft Online Store',
+  },
+  {
+    id: 'LIC-003',
+    licenseType: 'Firewall',
+    licenseOf: 'Fortinet FortiGate',
+    serialNumber: 'FG-2024-7788',
+    purchasedDate: '2024-02-10',
+    expiryDate: '2026-02-10',
+    purchasedFrom: 'Vendor',
+    contactPerson: 'Fortinet Sales',
+    contactNumber: '+1-408-123-4567',
+    website: 'www.fortinet.com',
+    address: '899 Kifer Road, Sunnyvale, CA 94086',
+    vendorName: 'Fortinet Partner',
   },
 ];
 

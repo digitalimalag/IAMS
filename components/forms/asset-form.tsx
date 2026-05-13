@@ -15,6 +15,12 @@ export type AssetStorageAddon = {
   quantity: string;
 };
 
+export type AssetRamModule = {
+  capacity: string;
+  ramType: '' | 'DDR-II' | 'DDR-III' | 'DDR-IV' | 'DDR-V';
+  ramMhz: string;
+};
+
 export type AssetFormValues = {
   id: string;
   name: string;
@@ -25,6 +31,9 @@ export type AssetFormValues = {
   designation: string;
   processor: string;
   ram: string;
+  ramType: '' | 'DDR-II' | 'DDR-III' | 'DDR-IV' | 'DDR-V';
+  ramMhz: string;
+  ramModules: AssetRamModule[];
   storage: string;
   osInstalled: string;
   purchaseDate: string;
@@ -74,6 +83,9 @@ const defaultValues: AssetFormValues = {
   designation: '',
   processor: '',
   ram: '',
+  ramType: '',
+  ramMhz: '',
+  ramModules: [{ capacity: '', ramType: '', ramMhz: '' }],
   storage: '',
   osInstalled: '',
   purchaseDate: '',
@@ -109,6 +121,27 @@ function parseStorageSummary(storage: string): AssetStorageAddon[] {
   });
 }
 
+function parseRamSummary(ram: string): AssetRamModule[] {
+  const normalized = ram
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (normalized.length === 0) return [{ capacity: '', ramType: '', ramMhz: '' }];
+
+  return normalized.map((item) => {
+    const match = item.match(/(.+?)\s+(DDR-II|DDR-III|DDR-IV|DDR-V)\s+(\d+)\s*MHz?/i);
+    if (match) {
+      return {
+        capacity: match[1].trim(),
+        ramType: match[2].toUpperCase() as AssetRamModule['ramType'],
+        ramMhz: match[3],
+      };
+    }
+    return { capacity: item, ramType: '', ramMhz: '' };
+  });
+}
+
 export function AssetForm({ title, description, submitLabel, cancelHref, initialValues, onSubmit, error }: AssetFormProps) {
   const [formData, setFormData] = useState<AssetFormValues>(defaultValues);
   const [customType, setCustomType] = useState('');
@@ -122,6 +155,11 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
         : initialValues?.storage
           ? parseStorageSummary(initialValues.storage)
           : [defaultStorageAddon()],
+      ramModules: Array.isArray(initialValues?.ramModules) && initialValues.ramModules.length > 0
+        ? initialValues.ramModules
+        : initialValues?.ram
+          ? parseRamSummary(`${initialValues.ram}${initialValues.ramType ? ` ${initialValues.ramType}` : ''}${initialValues.ramMhz ? ` ${initialValues.ramMhz} MHz` : ''}`)
+          : [{ capacity: '', ramType: '', ramMhz: '' }],
     });
     setCustomType('');
   }, [initialValues]);
@@ -146,6 +184,27 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
     }));
   };
 
+  const addRamModule = () => {
+    setFormData((prev) => ({
+      ...prev,
+      ramModules: [...prev.ramModules, { capacity: '', ramType: '', ramMhz: '' }],
+    }));
+  };
+
+  const updateRamModule = (index: number, field: keyof AssetRamModule, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      ramModules: prev.ramModules.map((module, idx) => (idx === index ? { ...module, [field]: value } : module)),
+    }));
+  };
+
+  const removeRamModule = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      ramModules: prev.ramModules.length > 1 ? prev.ramModules.filter((_, idx) => idx !== index) : prev.ramModules,
+    }));
+  };
+
   const updateStorageAddon = (index: number, field: keyof AssetStorageAddon, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -167,7 +226,27 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
       type: effectiveType,
       designation: formData.designation.trim(),
       processor: showComputerSpecs ? formData.processor : '',
-      ram: showComputerSpecs ? formData.ram : '',
+      ram: showComputerSpecs ? formData.ramModules
+        .map((module) => {
+          const capacity = module.capacity.trim();
+          const ramType = module.ramType;
+          const ramMhz = module.ramMhz.trim();
+          if (!capacity) return '';
+          return [capacity, ramType, ramMhz ? `${ramMhz} MHz` : ''].filter(Boolean).join(' ');
+        })
+        .filter(Boolean)
+        .join(', ') : '',
+      ramType: showComputerSpecs ? formData.ramModules.find((module) => module.ramType)?.ramType || '' : '',
+      ramMhz: showComputerSpecs ? formData.ramModules.find((module) => module.ramMhz)?.ramMhz || '' : '',
+      ramModules: showComputerSpecs
+        ? formData.ramModules
+            .map((module) => ({
+              capacity: module.capacity.trim(),
+              ramType: module.ramType,
+              ramMhz: module.ramMhz.trim(),
+            }))
+            .filter((module) => module.capacity)
+        : [],
       storage: showStorageAddonField ? formData.storageAddons
         .map((addon) => {
           const capacity = addon.capacity.trim();
@@ -272,15 +351,50 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
         </div>
 
         {showComputerSpecs && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <FieldGroup>
-              <FieldLabel>Processor</FieldLabel>
-              <Input value={formData.processor} onChange={(e) => handleChange('processor', e.target.value)} placeholder="Intel Core i7-13700H" />
-            </FieldGroup>
-            <FieldGroup>
-              <FieldLabel>RAM</FieldLabel>
-              <Input value={formData.ram} onChange={(e) => handleChange('ram', e.target.value)} placeholder="32 GB" />
-            </FieldGroup>
+          <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold">RAM Slots / Modules</p>
+                <p className="text-sm text-muted-foreground">Add one or more RAM sticks with capacity, DDR type, and MHz.</p>
+              </div>
+              <span className="text-xs rounded-full bg-primary/10 px-3 py-1 text-primary">Examples: 8 GB DDR-IV 3200 MHz</span>
+            </div>
+            <div className="space-y-3">
+              {formData.ramModules.map((module, index) => (
+                <div key={`${index}-${module.ramType}`} className="grid gap-3 rounded-xl border border-border bg-background/70 p-3 md:grid-cols-[1.2fr_0.8fr_0.5fr_auto]">
+                  <FieldGroup>
+                    <FieldLabel className="text-xs uppercase tracking-wide text-muted-foreground">Capacity</FieldLabel>
+                    <Input value={module.capacity} onChange={(e) => updateRamModule(index, 'capacity', e.target.value)} placeholder="8 GB" />
+                  </FieldGroup>
+                  <FieldGroup>
+                    <FieldLabel className="text-xs uppercase tracking-wide text-muted-foreground">Type</FieldLabel>
+                    <Select value={module.ramType} onValueChange={(value) => updateRamModule(index, 'ramType', value)}>
+                      <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DDR-II">DDR-II</SelectItem>
+                        <SelectItem value="DDR-III">DDR-III</SelectItem>
+                        <SelectItem value="DDR-IV">DDR-IV</SelectItem>
+                        <SelectItem value="DDR-V">DDR-V</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FieldGroup>
+                  <FieldGroup>
+                    <FieldLabel className="text-xs uppercase tracking-wide text-muted-foreground">MHz</FieldLabel>
+                    <Input value={module.ramMhz} onChange={(e) => updateRamModule(index, 'ramMhz', e.target.value)} placeholder="3200" />
+                  </FieldGroup>
+                  <div className="flex items-end">
+                    <Button type="button" variant="outline" className="w-full gap-2" onClick={() => removeRamModule(index)} disabled={formData.ramModules.length === 1}>
+                      <X className="h-4 w-4" />
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button type="button" variant="outline" className="gap-2" onClick={addRamModule}>
+              <Plus className="h-4 w-4" />
+              Add RAM Module
+            </Button>
           </div>
         )}
 
