@@ -15,13 +15,16 @@ import {
 } from '@/components/ui/select';
 import { Plus, Search, Download } from 'lucide-react';
 import { mockAssets } from '@/lib/mock-data';
+import type { Asset } from '@/lib/mock-data';
 import { AssetTable } from '@/components/tables/asset-table';
 import { AddAssetModal } from '@/components/modals/add-asset-modal';
+import { TransferAssetModal, type AssetTransferRecord } from '@/components/modals/transfer-asset-modal';
 import { ExportButtons } from '@/components/export-buttons';
 import type { Session } from '@/lib/auth';
 import { getPlanConfig, normalizePlan } from '@/lib/subscription';
 
 const ASSET_STORAGE_KEY = 'it_assets';
+const ASSET_TRANSFER_HISTORY_KEY = 'asset_transfer_history';
 
 export default function AssetsPage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -31,7 +34,9 @@ export default function AssetsPage() {
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<any | null>(null);
+  const [transferAsset, setTransferAsset] = useState<Asset | null>(null);
   const [assets, setAssets] = useState(mockAssets);
+  const [transferHistory, setTransferHistory] = useState<AssetTransferRecord[]>([]);
   const plan = normalizePlan(session?.plan);
   const planConfig = getPlanConfig(plan);
   const assetLimit = Number.isFinite(planConfig.assetLimit) ? planConfig.assetLimit : Number.POSITIVE_INFINITY;
@@ -55,11 +60,25 @@ export default function AssetsPage() {
         setAssets(mockAssets);
       }
     }
+
+    const storedHistory = localStorage.getItem(ASSET_TRANSFER_HISTORY_KEY);
+    if (storedHistory) {
+      try {
+        setTransferHistory(JSON.parse(storedHistory));
+      } catch {
+        setTransferHistory([]);
+      }
+    }
   }, []);
 
   const persistAssets = (nextAssets: any[]) => {
     setAssets(nextAssets);
     localStorage.setItem(ASSET_STORAGE_KEY, JSON.stringify(nextAssets));
+  };
+
+  const persistTransferHistory = (nextHistory: AssetTransferRecord[]) => {
+    setTransferHistory(nextHistory);
+    localStorage.setItem(ASSET_TRANSFER_HISTORY_KEY, JSON.stringify(nextHistory));
   };
 
   const visibleAssets = useMemo(() => {
@@ -72,8 +91,30 @@ export default function AssetsPage() {
 
   const handleAssetSubmit = (asset: any) => {
     if (editingAsset) {
+      const previous = assets.find((a) => a.id === asset.id);
       // Update existing asset
       persistAssets(assets.map(a => a.id === asset.id ? asset : a));
+      if (previous && (
+        previous.owner !== asset.owner ||
+        previous.department !== asset.department ||
+        previous.assignedToUserId !== asset.assignedToUserId
+      )) {
+        persistTransferHistory([
+          {
+            id: `TR-${Date.now()}`,
+            assetId: asset.id,
+            assetTag: asset.assetTag,
+            assetName: asset.name,
+            fromType: previous.assignedToUserId ? 'employee' : 'department',
+            fromValue: previous.owner || previous.department || '-',
+            toType: asset.assignedToUserId ? 'employee' : 'department',
+            toValue: asset.owner || asset.department || '-',
+            transferDate: new Date().toISOString().split('T')[0],
+            reason: 'Asset details updated',
+          },
+          ...transferHistory,
+        ]);
+      }
       setEditingAsset(null);
     } else {
       // Add new asset
@@ -82,11 +123,41 @@ export default function AssetsPage() {
         id: `AST-${Date.now()}`,
       };
       persistAssets([...assets, newAsset]);
+      persistTransferHistory([
+        {
+          id: `TR-${Date.now()}`,
+          assetId: newAsset.id,
+          assetTag: newAsset.assetTag,
+          assetName: newAsset.name,
+          fromType: 'department',
+          fromValue: 'Asset Register',
+          toType: newAsset.assignedToUserId ? 'employee' : 'department',
+          toValue: newAsset.owner || newAsset.department || 'Company Inventory',
+          transferDate: new Date().toISOString().split('T')[0],
+          reason: 'New asset created',
+        },
+        ...transferHistory,
+      ]);
     }
   };
 
   const handleDeleteAsset = (id: string) => {
     persistAssets(assets.filter(a => a.id !== id));
+  };
+
+  const handleTransferAsset = (record: AssetTransferRecord) => {
+    const asset = assets.find((a) => a.id === record.assetId);
+    if (!asset) return;
+
+    const nextAsset = {
+      ...asset,
+      owner: record.toValue,
+      department: record.toType === 'department' ? record.toValue : asset.department,
+      assignedToUserId: record.toType === 'employee' ? undefined : asset.assignedToUserId,
+    };
+
+    persistAssets(assets.map((a) => (a.id === asset.id ? nextAsset : a)));
+    persistTransferHistory([record, ...transferHistory]);
   };
 
   // Filter assets based on current filters
@@ -233,8 +304,40 @@ export default function AssetsPage() {
                 setEditingAsset(asset);
                 setIsAddModalOpen(true);
               }}
+              onTransfer={(asset) => setTransferAsset(asset)}
               onDelete={handleDeleteAsset}
             />
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border/50">
+          <CardHeader>
+            <CardTitle>Asset Transfer Chain</CardTitle>
+            <CardDescription>Track where each asset tag moved over time with dates and reasons.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {transferHistory.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No transfer records yet.</p>
+              ) : (
+                transferHistory.slice(0, 8).map((record) => (
+                  <div key={record.id} className="rounded-xl border border-border bg-muted/20 p-4">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-semibold">{record.assetTag} - {record.assetName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {record.fromType === 'employee' ? 'Employee' : 'Department'}: {record.fromValue}
+                          {' '}→{' '}
+                          {record.toType === 'employee' ? 'Employee' : 'Department'}: {record.toValue}
+                        </p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{record.transferDate}</p>
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">Reason: {record.reason}</p>
+                  </div>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -249,6 +352,17 @@ export default function AssetsPage() {
           }}
           onSubmit={handleAssetSubmit}
           editingAsset={editingAsset}
+        />
+      )}
+
+      {session?.role !== 'employee' && (
+        <TransferAssetModal
+          open={Boolean(transferAsset)}
+          onOpenChange={(open) => {
+            if (!open) setTransferAsset(null);
+          }}
+          asset={transferAsset}
+          onSubmit={handleTransferAsset}
         />
       )}
     </DashboardLayout>

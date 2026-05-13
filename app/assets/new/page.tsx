@@ -36,6 +36,7 @@ export default function NewAssetPage() {
     serialNumber: '',
     manufacturer: '',
     model: '',
+    designation: '',
     processor: '',
     ram: '',
     storage: '',
@@ -92,6 +93,7 @@ export default function NewAssetPage() {
       serialNumber: formData.serialNumber,
       manufacturer: formData.manufacturer,
       model: formData.model,
+      designation: formData.designation,
       processor: showComputerSpecs ? formData.processor || undefined : undefined,
       ram: showComputerSpecs ? formData.ram || undefined : undefined,
       storage: showComputerSpecs || showStorageField ? formData.storage || undefined : undefined,
@@ -169,6 +171,10 @@ export default function NewAssetPage() {
                   <FieldGroup>
                     <FieldLabel>Model</FieldLabel>
                     <Input value={formData.model} onChange={(e) => handleChange('model', e.target.value)} placeholder="XPS 15" />
+                  </FieldGroup>
+                  <FieldGroup>
+                    <FieldLabel>Designation</FieldLabel>
+                    <Input value={formData.designation} onChange={(e) => handleChange('designation', e.target.value)} placeholder="e.g., Senior Designer" />
                   </FieldGroup>
                   <FieldGroup>
                     <FieldLabel>Purchase Date</FieldLabel>

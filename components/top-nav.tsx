@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -119,8 +118,12 @@ export function TopNav({ onMenuToggle }: TopNavProps) {
             </Button>
           )}
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-              <Image src={workspaceLogo} alt="Company logo" width={36} height={36} className="h-full w-full object-contain p-0.5" unoptimized />
+            <div className="flex h-11 min-w-[52px] max-w-[150px] items-center justify-center overflow-hidden rounded-xl border border-border bg-background px-2 shadow-sm">
+              <img
+                src={workspaceLogo}
+                alt="Company logo"
+                className="h-9 w-auto max-w-[140px] object-contain"
+              />
             </div>
             <div>
               <h1 className="text-lg font-semibold text-foreground">{workspaceName}</h1>

@@ -39,7 +39,8 @@ function downloadBytes(bytes: Uint8Array, filename: string) {
 }
 
 async function loadImage(pdf: PDFDocument, logoUrl?: string) {
-  const source = logoUrl || '/logo.png';
+  const source = logoUrl?.trim();
+  if (!source) return null;
 
   try {
     if (source.startsWith('data:image/png;base64,')) {
@@ -88,37 +89,48 @@ export async function createHandoverPdfBytes(
       y: height - 86,
       width,
       height: 86,
-      color: rgb(0.09, 0.29, 0.62),
+      color: rgb(1, 1, 1),
+      borderColor: rgb(0.09, 0.29, 0.62),
+      borderWidth: 1.1,
     });
     if (logo) {
+      const maxLogoWidth = 72;
+      const maxLogoHeight = 44;
+      const scale = Math.min(maxLogoWidth / logo.width, maxLogoHeight / logo.height, 1);
+      const drawWidth = logo.width * scale;
+      const drawHeight = logo.height * scale;
       page.drawImage(logo, {
         x: MARGIN_X,
-        y: height - 71,
-        width: 38,
-        height: 38,
+        y: height - 68,
+        width: drawWidth,
+        height: drawHeight,
       });
     }
-    page.drawText(companyName, {
-  x: MARGIN_X + (logo ? 52 : 0),
-  y: height - 36,
-  size: 16,
-  font: bold,
-  color: rgb(1, 1, 1),
-});
+    const textX = MARGIN_X + (logo ? 86 : 0);
+    const titleLines = wrapText(bold, companyName, 12.5, width - textX - 250).slice(0, 2);
+    titleLines.forEach((line, index) => {
+      page.drawText(line, {
+        x: textX,
+        y: height - 30 - index * 15,
+        size: 12.5,
+        font: bold,
+        color: rgb(0.07, 0.11, 0.18),
+      });
+    });
 
-page.drawText('IT Assets Management SaaS', {
-  x: MARGIN_X + (logo ? 52 : 0),
-  y: height - 54,
-  size: 9.5,
-  font: regular,
-  color: rgb(0.88, 0.94, 1),
-});
+    page.drawText('IT Assets Management SaaS', {
+      x: textX,
+      y: height - 53,
+      size: 8.8,
+      font: regular,
+      color: rgb(0.38, 0.44, 0.53),
+    });
     page.drawText(`Asset Handover Receipt • Page ${pageNo}`, {
       x: width - 220,
       y: height - 40,
       size: 10,
       font: regular,
-      color: rgb(0.88, 0.94, 1),
+      color: rgb(0.07, 0.11, 0.18),
     });
   };
 

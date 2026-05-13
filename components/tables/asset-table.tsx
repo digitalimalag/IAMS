@@ -23,10 +23,11 @@ import {
 interface AssetTableProps {
   assets: Asset[];
   onEdit?: (asset: Asset) => void;
+  onTransfer?: (asset: Asset) => void;
   onDelete?: (id: string) => void;
 }
 
-export function AssetTable({ assets, onEdit, onDelete }: AssetTableProps) {
+export function AssetTable({ assets, onEdit, onTransfer, onDelete }: AssetTableProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active':
@@ -119,6 +120,10 @@ export function AssetTable({ assets, onEdit, onDelete }: AssetTableProps) {
                     <DropdownMenuItem className="gap-2" onClick={() => onEdit?.(asset)}>
                       <Edit className="w-4 h-4" />
                       Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2" onClick={() => onTransfer?.(asset)}>
+                      <MoreHorizontal className="w-4 h-4" />
+                      Transfer
                     </DropdownMenuItem>
                     <DropdownMenuItem className="gap-2 text-destructive" onClick={() => onDelete?.(asset.id)}>
                       <Trash2 className="w-4 h-4" />
