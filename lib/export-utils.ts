@@ -1,6 +1,13 @@
 import { Asset, NetworkDevice, Issue } from './mock-data';
 import { formatDateYMD } from './date';
 
+function formatStorageAddons(storageAddons?: { capacity: string; mediaType: 'HDD' | 'SSD'; quantity: number }[]) {
+  if (!storageAddons || storageAddons.length === 0) return '-';
+  return storageAddons
+    .map((addon) => `${addon.capacity} ${addon.quantity} ${addon.mediaType}`)
+    .join(', ');
+}
+
 // CSV Export Functions
 export function exportToCSV<T>(data: T[], filename: string) {
   if (data.length === 0) {
@@ -44,11 +51,12 @@ export function exportAssetsToCSV(assets: Asset[]) {
     'Model': asset.model,
     'Processor': asset.processor || '-',
     'RAM': asset.ram || '-',
-    'Storage': asset.storage || '-',
+    'Storage': formatStorageAddons(asset.storageAddons) !== '-' ? formatStorageAddons(asset.storageAddons) : (asset.storage || '-'),
     'OS': asset.osInstalled || '-',
     'Status': asset.status,
     'Location': asset.location,
     'Owner': asset.owner,
+    'Designation': asset.designation || '-',
     'Department': asset.department,
     'Purchase Date': asset.purchaseDate,
     'Warranty Expiry': asset.warrantyExpiry,
@@ -62,6 +70,8 @@ export function exportAssetsToCSV(assets: Asset[]) {
 export function exportNetworkDevicesToCSV(devices: NetworkDevice[]) {
   const csvDevices = devices.map(device => ({
     'Device ID': device.id,
+    'Model': device.deviceModel || '-',
+    'Brand': device.deviceBrand || '-',
     'Name': device.name,
     'Type': device.type,
     'IP Address': device.ipAddress,

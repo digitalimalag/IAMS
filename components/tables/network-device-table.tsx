@@ -76,6 +76,8 @@ export function NetworkDeviceTable({ devices, onEdit, onDelete }: NetworkDeviceT
       <Table>
         <TableHeader>
           <TableRow className="border-b hover:bg-transparent">
+            <TableHead className="text-xs uppercase tracking-wide">Model</TableHead>
+            <TableHead className="text-xs uppercase tracking-wide">Brand</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">Name</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">Type</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">IP Address</TableHead>
@@ -94,6 +96,8 @@ export function NetworkDeviceTable({ devices, onEdit, onDelete }: NetworkDeviceT
               key={device.id}
               className="border-b hover:bg-muted/40 transition-colors"
             >
+              <TableCell className="p-3 text-sm text-muted-foreground">{device.deviceModel || '-'}</TableCell>
+              <TableCell className="p-3 text-sm text-muted-foreground">{device.deviceBrand || '-'}</TableCell>
               <TableCell className="p-3 font-medium">{device.name}</TableCell>
               <TableCell>
                 <Badge variant="outline" className={getTypeColor(device.type)}>

@@ -28,6 +28,8 @@ const DEPARTMENTS = ['IT Support', 'Infrastructure', 'Design', 'Operations', 'Se
 export function AddNetworkDeviceModal({ open, onOpenChange, onSubmit, editingDevice }: AddNetworkDeviceModalProps) {
   const [formData, setFormData] = useState({
     id: '',
+    deviceModel: '',
+    deviceBrand: '',
     name: '',
     type: '',
     ipAddress: '',
@@ -42,6 +44,8 @@ export function AddNetworkDeviceModal({ open, onOpenChange, onSubmit, editingDev
     if (editingDevice) {
       setFormData({
         id: editingDevice.id,
+        deviceModel: editingDevice.deviceModel || '',
+        deviceBrand: editingDevice.deviceBrand || '',
         name: editingDevice.name,
         type: editingDevice.type,
         ipAddress: editingDevice.ipAddress,
@@ -54,6 +58,8 @@ export function AddNetworkDeviceModal({ open, onOpenChange, onSubmit, editingDev
     } else {
       setFormData({
         id: '',
+        deviceModel: '',
+        deviceBrand: '',
         name: '',
         type: '',
         ipAddress: '',
@@ -90,6 +96,26 @@ export function AddNetworkDeviceModal({ open, onOpenChange, onSubmit, editingDev
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
+            {/* Model */}
+            <FieldGroup>
+              <FieldLabel>Device Model</FieldLabel>
+              <Input
+                placeholder="e.g., RTX-AX3000"
+                value={formData.deviceModel}
+                onChange={(e) => handleChange('deviceModel', e.target.value)}
+              />
+            </FieldGroup>
+
+            {/* Brand */}
+            <FieldGroup>
+              <FieldLabel>Device Brand</FieldLabel>
+              <Input
+                placeholder="e.g., TP-Link"
+                value={formData.deviceBrand}
+                onChange={(e) => handleChange('deviceBrand', e.target.value)}
+              />
+            </FieldGroup>
+
             {/* Name */}
             <FieldGroup>
               <FieldLabel>Device Name</FieldLabel>

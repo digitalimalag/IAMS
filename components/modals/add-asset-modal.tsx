@@ -15,6 +15,12 @@ import { useState, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Asset } from '@/lib/mock-data';
 
+type StorageAddon = {
+  capacity: string;
+  mediaType: 'HDD' | 'SSD';
+  quantity: string;
+};
+
 interface AddAssetModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -81,6 +87,9 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
     cost: '',
     notes: '',
   });
+  const [storageAddons, setStorageAddons] = useState<StorageAddon[]>([
+    { capacity: '', mediaType: 'SSD', quantity: '1' },
+  ]);
 
   const [customType, setCustomType] = useState('');
 
@@ -92,6 +101,15 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
     if (editingAsset) {
       const isPresetType = ASSET_TYPES.includes(editingAsset.type);
       setCustomType(isPresetType ? '' : editingAsset.type);
+      const existingStorageAddons = Array.isArray(editingAsset.storageAddons) && editingAsset.storageAddons.length > 0
+        ? editingAsset.storageAddons.map((addon): StorageAddon => ({
+            capacity: addon.capacity || '',
+            mediaType: (addon.mediaType === 'HDD' ? 'HDD' : 'SSD') as StorageAddon['mediaType'],
+            quantity: String(addon.quantity || 1),
+          }))
+        : editingAsset.storage
+          ? parseStorageSummary(editingAsset.storage)
+          : [{ capacity: '', mediaType: 'SSD' as 'SSD', quantity: '1' }];
       setFormData({
         id: editingAsset.id,
         name: editingAsset.name,
@@ -114,6 +132,7 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
         cost: editingAsset.cost.toString(),
         notes: editingAsset.notes,
       });
+      setStorageAddons(existingStorageAddons);
     } else {
       setCustomType('');
       setFormData({
@@ -138,18 +157,71 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
         cost: '',
         notes: '',
       });
+      setStorageAddons([{ capacity: '', mediaType: 'SSD', quantity: '1' }]);
     }
   }, [editingAsset, open]);
 
   const effectiveType =
     formData.type === '__manual__' ? customType.trim() : formData.type;
   const showComputerSpecs = ['Laptop', 'Desktop', 'Server'].includes(effectiveType);
-  const showStorageField = ['Laptop', 'Desktop', 'Server', 'USB HDD/SSD'].includes(effectiveType);
+  const showStorageAddonField = ['Laptop', 'Desktop', 'Server', 'USB HDD/SSD'].includes(effectiveType);
   const showMiscStorage = ['Printer', 'Monitor', 'Router', 'Switch', 'UPS', 'TV', 'Network Rack'].includes(effectiveType);
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  const addStorageAddon = () => {
+    setStorageAddons((prev) => [...prev, { capacity: '', mediaType: 'SSD', quantity: '1' }]);
+  };
+
+  const updateStorageAddon = (index: number, field: keyof StorageAddon, value: string) => {
+    setStorageAddons((prev) =>
+      prev.map((addon, idx) => (idx === index ? { ...addon, [field]: value } : addon))
+    );
+  };
+
+  const removeStorageAddon = (index: number) => {
+    setStorageAddons((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== index) : prev));
+  };
+
+  const parseStorageSummary = (storage: string): StorageAddon[] => {
+    const normalized = storage
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (normalized.length === 0) {
+      return [{ capacity: '', mediaType: 'SSD' as 'SSD', quantity: '1' }];
+    }
+
+    return normalized.map((item): StorageAddon => {
+      const match = item.match(/(.+?)\s+(\d+)\s*(HDD|SSD)\b/i);
+      if (match) {
+        return {
+          capacity: match[1].trim(),
+          quantity: match[2],
+          mediaType: (match[3].toUpperCase() === 'HDD' ? 'HDD' : 'SSD') as StorageAddon['mediaType'],
+        };
+      }
+
+      return {
+        capacity: item,
+        mediaType: 'SSD' as 'SSD',
+        quantity: '1',
+      };
+    });
+  };
+
+  const storageSummary = storageAddons
+    .map((addon) => {
+      const capacity = addon.capacity.trim();
+      const qty = Number(addon.quantity || '1') || 1;
+      if (!capacity) return '';
+      return `${capacity} ${qty} ${addon.mediaType}`;
+    })
+    .filter(Boolean)
+    .join(', ');
 
   const handleAddCategory = () => {
     if (newCategory.trim() && !categories.includes(newCategory)) {
@@ -171,7 +243,16 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
       designation: formData.designation.trim(),
       processor: showComputerSpecs ? formData.processor : '',
       ram: showComputerSpecs ? formData.ram : '',
-      storage: showComputerSpecs || showStorageField ? formData.storage : '',
+      storage: showStorageAddonField ? storageSummary : (showMiscStorage ? formData.storage : ''),
+      storageAddons: showStorageAddonField
+        ? storageAddons
+            .map((addon) => ({
+              capacity: addon.capacity.trim(),
+              mediaType: addon.mediaType,
+              quantity: Number(addon.quantity || '1') || 1,
+            }))
+            .filter((addon) => addon.capacity)
+        : [],
       osInstalled: showComputerSpecs ? formData.osInstalled : '',
       cost: parseFloat(formData.cost) || 0,
     });
@@ -276,16 +357,6 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
               />
             </FieldGroup>
 
-            {/* Designation */}
-            <FieldGroup>
-              <FieldLabel>Designation</FieldLabel>
-              <Input
-                placeholder="e.g., Senior Designer"
-                value={formData.designation}
-                onChange={(e) => handleChange('designation', e.target.value)}
-              />
-            </FieldGroup>
-
             {showComputerSpecs && (
               <>
                 {/* Processor */}
@@ -308,26 +379,118 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
                   />
                 </FieldGroup>
 
+                {/* Storage Add-ons */}
+                {showStorageAddonField && (
+                  <FieldGroup>
+                    <FieldLabel>HDD / SSD Add-ons</FieldLabel>
+                    <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                      {storageAddons.map((addon, index) => (
+                        <div key={`${addon.mediaType}-${index}`} className="grid gap-3 md:grid-cols-[1.2fr_0.8fr_0.5fr_auto]">
+                          <Input
+                            placeholder="e.g., 1 TB"
+                            value={addon.capacity}
+                            onChange={(e) => updateStorageAddon(index, 'capacity', e.target.value)}
+                          />
+                          <Select
+                            value={addon.mediaType}
+                            onValueChange={(value) => updateStorageAddon(index, 'mediaType', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="HDD">HDD</SelectItem>
+                              <SelectItem value="SSD">SSD</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            type="number"
+                            min="1"
+                            placeholder="Qty"
+                            value={addon.quantity}
+                            onChange={(e) => updateStorageAddon(index, 'quantity', e.target.value)}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="gap-2"
+                            onClick={() => removeStorageAddon(index)}
+                            disabled={storageAddons.length === 1}
+                          >
+                            <X className="h-4 w-4" />
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                      <Button type="button" variant="outline" className="gap-2" onClick={addStorageAddon}>
+                        <Plus className="h-4 w-4" />
+                        Add Storage Add-on
+                      </Button>
+                    </div>
+                  </FieldGroup>
+                )}
+
                 {/* OS Installed */}
-                <FieldGroup>
-                  <FieldLabel>OS Installed</FieldLabel>
-                  <Input
-                    placeholder="e.g., Windows 11 Pro"
-                    value={formData.osInstalled}
-                    onChange={(e) => handleChange('osInstalled', e.target.value)}
-                  />
-                </FieldGroup>
+                {showComputerSpecs && (
+                  <FieldGroup>
+                    <FieldLabel>OS Installed</FieldLabel>
+                    <Input
+                      placeholder="e.g., Windows 11 Pro"
+                      value={formData.osInstalled}
+                      onChange={(e) => handleChange('osInstalled', e.target.value)}
+                    />
+                  </FieldGroup>
+                )}
               </>
             )}
 
-            {showStorageField && !showComputerSpecs && (
+            {showStorageAddonField && !showComputerSpecs && (
               <FieldGroup>
-                <FieldLabel>HDD/SSD</FieldLabel>
-                <Input
-                  placeholder="e.g., 512 GB SSD"
-                  value={formData.storage}
-                  onChange={(e) => handleChange('storage', e.target.value)}
-                />
+                <FieldLabel>HDD / SSD Add-ons</FieldLabel>
+                <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                  {storageAddons.map((addon, index) => (
+                    <div key={`${addon.mediaType}-${index}`} className="grid gap-3 md:grid-cols-[1.2fr_0.8fr_0.5fr_auto]">
+                      <Input
+                        placeholder="e.g., 512 GB"
+                        value={addon.capacity}
+                        onChange={(e) => updateStorageAddon(index, 'capacity', e.target.value)}
+                      />
+                      <Select
+                        value={addon.mediaType}
+                        onValueChange={(value) => updateStorageAddon(index, 'mediaType', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="HDD">HDD</SelectItem>
+                          <SelectItem value="SSD">SSD</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="Qty"
+                        value={addon.quantity}
+                        onChange={(e) => updateStorageAddon(index, 'quantity', e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => removeStorageAddon(index)}
+                        disabled={storageAddons.length === 1}
+                      >
+                        <X className="h-4 w-4" />
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" className="gap-2" onClick={addStorageAddon}>
+                    <Plus className="h-4 w-4" />
+                    Add Storage Add-on
+                  </Button>
+                </div>
               </FieldGroup>
             )}
 
@@ -394,6 +557,16 @@ export function AddAssetModal({ open, onOpenChange, onSubmit, editingAsset }: Ad
                 placeholder="e.g., John Doe"
                 value={formData.owner}
                 onChange={(e) => handleChange('owner', e.target.value)}
+              />
+            </FieldGroup>
+
+            {/* Designation */}
+            <FieldGroup>
+              <FieldLabel>Designation</FieldLabel>
+              <Input
+                placeholder="e.g., Senior Designer"
+                value={formData.designation}
+                onChange={(e) => handleChange('designation', e.target.value)}
               />
             </FieldGroup>
 

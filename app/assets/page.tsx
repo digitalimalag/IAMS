@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,6 @@ import { Plus, Search, Download } from 'lucide-react';
 import { mockAssets } from '@/lib/mock-data';
 import type { Asset } from '@/lib/mock-data';
 import { AssetTable } from '@/components/tables/asset-table';
-import { AddAssetModal } from '@/components/modals/add-asset-modal';
 import { TransferAssetModal, type AssetTransferRecord } from '@/components/modals/transfer-asset-modal';
 import { ExportButtons } from '@/components/export-buttons';
 import type { Session } from '@/lib/auth';
@@ -27,13 +27,12 @@ const ASSET_STORAGE_KEY = 'it_assets';
 const ASSET_TRANSFER_HISTORY_KEY = 'asset_transfer_history';
 
 export default function AssetsPage() {
+  const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingAsset, setEditingAsset] = useState<any | null>(null);
   const [transferAsset, setTransferAsset] = useState<Asset | null>(null);
   const [assets, setAssets] = useState(mockAssets);
   const [transferHistory, setTransferHistory] = useState<AssetTransferRecord[]>([]);
@@ -88,58 +87,6 @@ export default function AssetsPage() {
     }
     return assets;
   }, [assets, session]);
-
-  const handleAssetSubmit = (asset: any) => {
-    if (editingAsset) {
-      const previous = assets.find((a) => a.id === asset.id);
-      // Update existing asset
-      persistAssets(assets.map(a => a.id === asset.id ? asset : a));
-      if (previous && (
-        previous.owner !== asset.owner ||
-        previous.department !== asset.department ||
-        previous.assignedToUserId !== asset.assignedToUserId
-      )) {
-        persistTransferHistory([
-          {
-            id: `TR-${Date.now()}`,
-            assetId: asset.id,
-            assetTag: asset.assetTag,
-            assetName: asset.name,
-            fromType: previous.assignedToUserId ? 'employee' : 'department',
-            fromValue: previous.owner || previous.department || '-',
-            toType: asset.assignedToUserId ? 'employee' : 'department',
-            toValue: asset.owner || asset.department || '-',
-            transferDate: new Date().toISOString().split('T')[0],
-            reason: 'Asset details updated',
-          },
-          ...transferHistory,
-        ]);
-      }
-      setEditingAsset(null);
-    } else {
-      // Add new asset
-      const newAsset = {
-        ...asset,
-        id: `AST-${Date.now()}`,
-      };
-      persistAssets([...assets, newAsset]);
-      persistTransferHistory([
-        {
-          id: `TR-${Date.now()}`,
-          assetId: newAsset.id,
-          assetTag: newAsset.assetTag,
-          assetName: newAsset.name,
-          fromType: 'department',
-          fromValue: 'Asset Register',
-          toType: newAsset.assignedToUserId ? 'employee' : 'department',
-          toValue: newAsset.owner || newAsset.department || 'Company Inventory',
-          transferDate: new Date().toISOString().split('T')[0],
-          reason: 'New asset created',
-        },
-        ...transferHistory,
-      ]);
-    }
-  };
 
   const handleDeleteAsset = (id: string) => {
     persistAssets(assets.filter(a => a.id !== id));
@@ -300,10 +247,7 @@ export default function AssetsPage() {
           <CardContent>
             <AssetTable 
               assets={filteredAssets} 
-              onEdit={(asset) => {
-                setEditingAsset(asset);
-                setIsAddModalOpen(true);
-              }}
+              onEdit={(asset) => router.push(`/assets/edit/${asset.id}`)}
               onTransfer={(asset) => setTransferAsset(asset)}
               onDelete={handleDeleteAsset}
             />
@@ -341,19 +285,6 @@ export default function AssetsPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Add/Edit Asset Modal */}
-      {session?.role !== 'employee' && (
-        <AddAssetModal 
-          open={isAddModalOpen} 
-          onOpenChange={(open) => {
-            setIsAddModalOpen(open);
-            if (!open) setEditingAsset(null);
-          }}
-          onSubmit={handleAssetSubmit}
-          editingAsset={editingAsset}
-        />
-      )}
 
       {session?.role !== 'employee' && (
         <TransferAssetModal

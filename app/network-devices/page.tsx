@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,20 +17,18 @@ import {
 import { Plus, Search, RefreshCw } from 'lucide-react';
 import { mockNetworkDevices } from '@/lib/mock-data';
 import { NetworkDeviceTable } from '@/components/tables/network-device-table';
-import { AddNetworkDeviceModal } from '@/components/modals/add-network-device-modal';
 import { ExportButtons } from '@/components/export-buttons';
 import type { Session } from '@/lib/auth';
 
 const DEVICE_STORAGE_KEY = 'it_network_devices';
 
 export default function NetworkDevicesPage() {
+  const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingDevice, setEditingDevice] = useState<any | null>(null);
   const [devices, setDevices] = useState(mockNetworkDevices);
 
   useEffect(() => {
@@ -54,20 +53,6 @@ export default function NetworkDevicesPage() {
   const persistDevices = (nextDevices: any[]) => {
     setDevices(nextDevices);
     localStorage.setItem(DEVICE_STORAGE_KEY, JSON.stringify(nextDevices));
-  };
-
-  const handleDeviceSubmit = (device: any) => {
-    if (editingDevice) {
-      persistDevices(devices.map(d => d.id === device.id ? device : d));
-      setEditingDevice(null);
-    } else {
-      const newDevice = {
-        ...device,
-        id: `NET-${Date.now()}`,
-        lastSeen: new Date().toISOString(),
-      };
-      persistDevices([...devices, newDevice]);
-    }
   };
 
   const handleDeleteDevice = (id: string) => {
@@ -207,26 +192,12 @@ export default function NetworkDevicesPage() {
           <CardContent>
             <NetworkDeviceTable 
               devices={filteredDevices}
-              onEdit={(device) => {
-                setEditingDevice(device);
-                setIsAddModalOpen(true);
-              }}
+              onEdit={(device) => router.push(`/network-devices/edit/${device.id}`)}
               onDelete={handleDeleteDevice}
             />
           </CardContent>
         </Card>
       </div>
-
-      {/* Add/Edit Device Modal */}
-      <AddNetworkDeviceModal 
-        open={isAddModalOpen} 
-        onOpenChange={(open) => {
-          setIsAddModalOpen(open);
-          if (!open) setEditingDevice(null);
-        }}
-        onSubmit={handleDeviceSubmit}
-        editingDevice={editingDevice}
-      />
     </DashboardLayout>
   );
 }

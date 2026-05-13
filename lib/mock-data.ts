@@ -119,6 +119,7 @@ export interface Asset {
   processor?: string;
   ram?: string;
   storage?: string;
+  storageAddons?: { capacity: string; mediaType: 'HDD' | 'SSD'; quantity: number }[];
   osInstalled?: string;
   purchaseDate: string;
   warrantyExpiry: string;
@@ -136,6 +137,8 @@ export interface Asset {
 
 export interface NetworkDevice {
   id: string;
+  deviceModel?: string;
+  deviceBrand?: string;
   name: string;
   type: 'CCTV' | 'Router' | 'Switch' | 'Access Point';
   ipAddress: string;
