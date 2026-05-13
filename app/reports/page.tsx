@@ -1,15 +1,57 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { SessionCheck } from '@/components/session-check';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { getAssetDistribution, getDashboardStats, mockAssets, mockNetworkDevices, mockIssues } from '@/lib/mock-data';
+import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { readStoredSession } from '@/lib/licenses';
+
+type LicenseStats = {
+  total: number;
+  expiringSoon: number;
+};
 
 function ReportsContent() {
   const stats = getDashboardStats();
   const assetDistribution = getAssetDistribution();
+  const [licenseStats, setLicenseStats] = useState<LicenseStats>({ total: 0, expiringSoon: 0 });
+
+  useEffect(() => {
+    const loadLicenseStats = async () => {
+      const session = readStoredSession();
+      const orgId = session?.organizationId;
+
+      if (!orgId) return;
+
+      if (isSupabaseConfigured()) {
+        const supabase = createSupabaseBrowserClient();
+        const { data } = await supabase.from('licenses').select('id, expiry_date').eq('organization_id', orgId);
+        const rows = data || [];
+        const in30Days = new Date();
+        in30Days.setDate(in30Days.getDate() + 30);
+        setLicenseStats({
+          total: rows.length,
+          expiringSoon: rows.filter((row) => row.expiry_date && new Date(row.expiry_date) <= in30Days).length,
+        });
+        return;
+      }
+
+      const stored = localStorage.getItem('it_licenses');
+      const licenses = stored ? JSON.parse(stored) : [];
+      const in30Days = new Date();
+      in30Days.setDate(in30Days.getDate() + 30);
+      setLicenseStats({
+        total: licenses.length,
+        expiringSoon: licenses.filter((license: { expiryDate?: string }) => license.expiryDate && new Date(license.expiryDate) <= in30Days).length,
+      });
+    };
+
+    void loadLicenseStats();
+  }, []);
 
   // Prepare data for lifecycle chart
   const lifecycleData = [
@@ -77,6 +119,16 @@ function ReportsContent() {
             <CardContent>
               <div className="text-3xl font-bold">{stats.totalDepartments}</div>
               <p className="text-xs text-muted-foreground mt-1">Managed</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border/50">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Licenses</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{licenseStats.total}</div>
+              <p className="text-xs text-muted-foreground mt-1">{licenseStats.expiringSoon} expiring within 30 days</p>
             </CardContent>
           </Card>
         </div>

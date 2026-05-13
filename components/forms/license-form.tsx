@@ -12,6 +12,7 @@ export type LicenseFormValues = {
   licenseType: 'OS' | 'Software' | 'Firewall' | 'Other';
   licenseOf: string;
   serialNumber: string;
+  productKey: string;
   purchasedDate: string;
   expiryDate: string;
   purchasedFrom: 'Vendor' | 'Online';
@@ -29,7 +30,7 @@ interface LicenseFormProps {
   submitLabel: string;
   cancelHref: string;
   initialValues?: Partial<LicenseFormValues>;
-  onSubmit: (values: LicenseFormValues) => void;
+  onSubmit: (values: LicenseFormValues) => void | Promise<void>;
   error?: string;
 }
 
@@ -38,6 +39,7 @@ const defaultValues: LicenseFormValues = {
   licenseType: 'Software',
   licenseOf: '',
   serialNumber: '',
+  productKey: '',
   purchasedDate: '',
   expiryDate: '',
   purchasedFrom: 'Vendor',
@@ -51,6 +53,7 @@ const defaultValues: LicenseFormValues = {
 
 export function LicenseForm({ title, description, submitLabel, cancelHref, initialValues, onSubmit, error }: LicenseFormProps) {
   const [formData, setFormData] = useState<LicenseFormValues>(defaultValues);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setFormData({ ...defaultValues, ...initialValues });
@@ -60,9 +63,14 @@ export function LicenseForm({ title, description, submitLabel, cancelHref, initi
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(formData);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -94,6 +102,10 @@ export function LicenseForm({ title, description, submitLabel, cancelHref, initi
             <FieldGroup>
               <FieldLabel>Serial Number *</FieldLabel>
               <Input value={formData.serialNumber} onChange={(e) => handleChange('serialNumber', e.target.value)} placeholder="LIC-2024-001" required />
+            </FieldGroup>
+            <FieldGroup>
+              <FieldLabel>Product Key</FieldLabel>
+              <Input value={formData.productKey} onChange={(e) => handleChange('productKey', e.target.value)} placeholder="XXXXX-XXXXX-XXXXX-XXXXX" />
             </FieldGroup>
             <FieldGroup>
               <FieldLabel>Purchased From</FieldLabel>
@@ -145,7 +157,9 @@ export function LicenseForm({ title, description, submitLabel, cancelHref, initi
             <Link href={cancelHref}>
               <Button variant="outline" type="button">Cancel</Button>
             </Link>
-            <Button type="submit" className="bg-primary hover:bg-primary/90">{submitLabel}</Button>
+            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : submitLabel}
+            </Button>
           </div>
         </form>
       </div>

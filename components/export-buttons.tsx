@@ -8,12 +8,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { exportAssetsToCSV, exportNetworkDevicesToCSV, exportIssuesToCSV } from '@/lib/export-utils';
-import { Asset, NetworkDevice, Issue } from '@/lib/mock-data';
+import { exportAssetsToCSV, exportNetworkDevicesToCSV, exportIssuesToCSV, exportLicensesToCSV } from '@/lib/export-utils';
+import { Asset, NetworkDevice, Issue, LicenseRecord } from '@/lib/mock-data';
 
 interface ExportButtonsProps {
-  data: Asset[] | NetworkDevice[] | Issue[];
-  type: 'assets' | 'devices' | 'issues';
+  data: Asset[] | NetworkDevice[] | Issue[] | LicenseRecord[];
+  type: 'assets' | 'devices' | 'issues' | 'licenses';
   onGeneratePDF?: () => void;
 }
 
@@ -28,6 +28,9 @@ export function ExportButtons({ data, type, onGeneratePDF }: ExportButtonsProps)
         break;
       case 'issues':
         exportIssuesToCSV(data as Issue[]);
+        break;
+      case 'licenses':
+        exportLicensesToCSV(data as LicenseRecord[]);
         break;
     }
   };

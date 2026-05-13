@@ -13,30 +13,67 @@ import { Plus, Search, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { mockLicenses, type LicenseRecord } from '@/lib/mock-data';
 import { formatDateYMD } from '@/lib/date';
-
-const LICENSE_STORAGE_KEY = 'it_licenses';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import type { Session } from '@/lib/auth';
+import { ExportButtons } from '@/components/export-buttons';
+import {
+  LICENSE_STORAGE_KEY,
+  canUseLicenseSupabase,
+  getLicenseOrganizationId,
+  licenseRowToRecord,
+  readStoredSession,
+  writeLicenseAuditLog,
+} from '@/lib/licenses';
 
 export default function LicensesPage() {
   const router = useRouter();
-  const [licenses, setLicenses] = useState<LicenseRecord[]>(mockLicenses);
+  const [session, setSession] = useState<Session | null>(null);
+  const [licenses, setLicenses] = useState<LicenseRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
-    const stored = localStorage.getItem(LICENSE_STORAGE_KEY);
-    if (stored) {
-      try {
-        setLicenses(JSON.parse(stored));
-      } catch {
-        setLicenses(mockLicenses);
-      }
-    }
-  }, []);
+    const currentSession = readStoredSession();
+    setSession(currentSession);
 
-  const persistLicenses = (next: LicenseRecord[]) => {
-    setLicenses(next);
-    localStorage.setItem(LICENSE_STORAGE_KEY, JSON.stringify(next));
-  };
+    const loadLicenses = async () => {
+      setLoading(true);
+      try {
+        if (canUseLicenseSupabase(currentSession)) {
+          const supabase = createSupabaseBrowserClient();
+          const orgId = getLicenseOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('licenses')
+            .select('*')
+            .eq('organization_id', orgId)
+            .order('created_at', { ascending: false });
+
+          if (!error) {
+            setLicenses((data || []).map(licenseRowToRecord));
+            return;
+          }
+        }
+
+        const stored = localStorage.getItem(LICENSE_STORAGE_KEY);
+        if (stored) {
+          try {
+            setLicenses(JSON.parse(stored));
+            return;
+          } catch {
+            // Fall through to seed data
+          }
+        }
+
+        setLicenses(mockLicenses);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadLicenses();
+  }, []);
 
   const filteredLicenses = useMemo(() => {
     return licenses.filter((license) => {
@@ -49,8 +86,55 @@ export default function LicensesPage() {
     });
   }, [licenses, searchTerm, typeFilter]);
 
-  const handleDelete = (id: string) => {
-    persistLicenses(licenses.filter((license) => license.id !== id));
+  const handleDelete = async (id: string) => {
+    setActionError('');
+    const deletedLicense = licenses.find((license) => license.id === id) || null;
+
+    if (canUseLicenseSupabase(session)) {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const orgId = getLicenseOrganizationId(session);
+        const { error } = await supabase.from('licenses').delete().eq('id', id).eq('organization_id', orgId);
+        if (error) {
+          setActionError(error.message);
+          return;
+        }
+        await writeLicenseAuditLog(session, 'delete_license', id, {
+          licenseOf: deletedLicense?.licenseOf || '',
+          serialNumber: deletedLicense?.serialNumber || '',
+          productKey: deletedLicense?.productKey || '',
+          licenseType: deletedLicense?.licenseType || '',
+        });
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : 'Failed to delete license.');
+        return;
+      }
+    } else {
+      const next = licenses.filter((license) => license.id !== id);
+      setLicenses(next);
+      localStorage.setItem(LICENSE_STORAGE_KEY, JSON.stringify(next));
+      if (deletedLicense) {
+        const auditLogsRaw = localStorage.getItem('audit_logs');
+        const existingLogs = auditLogsRaw ? JSON.parse(auditLogsRaw) : [];
+        const nextLog = {
+          id: `audit-${Date.now()}`,
+          created_at: new Date().toISOString(),
+          action: 'delete_license',
+          entity_type: 'license',
+          entity_id: id,
+          metadata: {
+            licenseOf: deletedLicense.licenseOf,
+            serialNumber: deletedLicense.serialNumber,
+            productKey: deletedLicense.productKey,
+            licenseType: deletedLicense.licenseType,
+          },
+        };
+        localStorage.setItem('audit_logs', JSON.stringify([nextLog, ...existingLogs]));
+      }
+      return;
+    }
+
+    setLicenses((current) => current.filter((license) => license.id !== id));
   };
 
   return (
@@ -63,6 +147,7 @@ export default function LicensesPage() {
               <p className="text-muted-foreground mt-2">Manage OS, software, firewall, and other software licenses.</p>
             </div>
             <div className="flex flex-wrap justify-start gap-2 lg:justify-center">
+              <ExportButtons data={filteredLicenses} type="licenses" />
               <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90" onClick={() => router.push('/licenses/new')}>
                 <Plus className="w-4 h-4" />
                 Add License
@@ -98,6 +183,12 @@ export default function LicensesPage() {
             </CardContent>
           </Card>
 
+          {actionError && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-4 text-sm text-red-700">{actionError}</CardContent>
+            </Card>
+          )}
+
           <Card className="bg-card border-border/50">
             <CardHeader>
               <CardTitle>All Licenses</CardTitle>
@@ -105,68 +196,74 @@ export default function LicensesPage() {
             </CardHeader>
             <CardContent>
               <div className="w-full overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/50 hover:bg-transparent">
-                      <TableHead className="text-xs uppercase tracking-wide">License Of</TableHead>
-                      <TableHead className="text-xs uppercase tracking-wide">Type</TableHead>
-                      <TableHead className="text-xs uppercase tracking-wide">Serial Number</TableHead>
-                      <TableHead className="text-xs uppercase tracking-wide">Purchased Date</TableHead>
-                      <TableHead className="text-xs uppercase tracking-wide">Expiry Date</TableHead>
-                      <TableHead className="text-xs uppercase tracking-wide">Purchased From</TableHead>
-                      <TableHead className="text-xs uppercase tracking-wide">Contact Person</TableHead>
-                      <TableHead className="text-xs uppercase tracking-wide">Contact Number</TableHead>
-                      <TableHead className="text-xs uppercase tracking-wide">Website</TableHead>
-                      <TableHead className="text-xs uppercase tracking-wide">Address</TableHead>
-                      <TableHead className="w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredLicenses.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={11} className="py-8 text-center text-muted-foreground">
-                          No licenses found
-                        </TableCell>
+                {loading ? (
+                  <div className="py-10 text-center text-muted-foreground">Loading licenses...</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border/50 hover:bg-transparent">
+                        <TableHead className="text-xs uppercase tracking-wide">License Of</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Type</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Serial Number</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Product Key</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Purchased Date</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Expiry Date</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Purchased From</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Contact Person</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Contact Number</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Website</TableHead>
+                        <TableHead className="text-xs uppercase tracking-wide">Address</TableHead>
+                        <TableHead className="w-10"></TableHead>
                       </TableRow>
-                    ) : (
-                      filteredLicenses.map((license) => (
-                        <TableRow key={license.id} className="border-border/50 hover:bg-muted/30">
-                          <TableCell className="font-medium">{license.licenseOf}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{license.licenseType}</Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{license.serialNumber}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{formatDateYMD(license.purchasedDate)}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{formatDateYMD(license.expiryDate)}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{license.purchasedFrom}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{license.contactPerson}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{license.contactNumber}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{license.website}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{license.address}</TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem className="gap-2" onClick={() => router.push(`/licenses/edit/${license.id}`)}>
-                                  <Edit className="w-4 h-4" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(license.id)}>
-                                  <Trash2 className="w-4 h-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredLicenses.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={12} className="py-8 text-center text-muted-foreground">
+                            No licenses found
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                      ) : (
+                        filteredLicenses.map((license) => (
+                          <TableRow key={license.id} className="border-border/50 hover:bg-muted/30">
+                            <TableCell className="font-medium">{license.licenseOf}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{license.licenseType}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{license.serialNumber}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{license.productKey || '-'}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{formatDateYMD(license.purchasedDate)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{formatDateYMD(license.expiryDate)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{license.purchasedFrom}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{license.contactPerson}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{license.contactNumber}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{license.website}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{license.address}</TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem className="gap-2" onClick={() => router.push(`/licenses/edit/${license.id}`)}>
+                                    <Edit className="w-4 h-4" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(license.id)}>
+                                    <Trash2 className="w-4 h-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             </CardContent>
           </Card>

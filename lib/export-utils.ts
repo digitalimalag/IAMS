@@ -1,4 +1,4 @@
-import { Asset, NetworkDevice, Issue } from './mock-data';
+import { Asset, NetworkDevice, Issue, LicenseRecord } from './mock-data';
 import { formatDateYMD } from './date';
 
 function formatStorageAddons(storageAddons?: { capacity: string; mediaType: 'HDD' | 'SSD'; quantity: number }[]) {
@@ -111,6 +111,26 @@ export function exportIssuesToCSV(issues: Issue[]) {
   }));
 
   exportToCSV(csvIssues, `issues-${formatDateYMD(new Date())}`);
+}
+
+export function exportLicensesToCSV(licenses: LicenseRecord[]) {
+  const csvLicenses = licenses.map((license) => ({
+    'License Of': license.licenseOf,
+    'License Type': license.licenseType,
+    'Serial Number': license.serialNumber,
+    'Product Key': license.productKey || '-',
+    'Purchased Date': license.purchasedDate || '-',
+    'Expiry Date': license.expiryDate || '-',
+    'Purchased From': license.purchasedFrom,
+    'Contact Person': license.contactPerson || '-',
+    'Contact Number': license.contactNumber || '-',
+    'Website': license.website || '-',
+    'Vendor Name': license.vendorName || '-',
+    'Address': license.address || '-',
+    'Notes': license.notes || '-',
+  }));
+
+  exportToCSV(csvLicenses, `licenses-${formatDateYMD(new Date())}`);
 }
 
 // PDF Generation for Asset Issue Form

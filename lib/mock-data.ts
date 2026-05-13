@@ -159,6 +159,7 @@ export interface LicenseRecord {
   licenseType: 'OS' | 'Software' | 'Firewall' | 'Other';
   licenseOf: string;
   serialNumber: string;
+  productKey: string;
   purchasedDate: string;
   expiryDate: string;
   purchasedFrom: 'Vendor' | 'Online';
@@ -415,6 +416,7 @@ export const mockLicenses: LicenseRecord[] = [
     licenseType: 'OS',
     licenseOf: 'Windows 11 Pro',
     serialNumber: 'WIN11-PRO-001',
+    productKey: 'VK7JG-NPHTM-C97JM-9MPGT-3V66T',
     purchasedDate: '2024-01-15',
     expiryDate: '2027-01-15',
     purchasedFrom: 'Vendor',
@@ -429,6 +431,7 @@ export const mockLicenses: LicenseRecord[] = [
     licenseType: 'Software',
     licenseOf: 'Microsoft 365 Business Standard',
     serialNumber: 'M365-BS-2024-004',
+    productKey: 'M365-STD-2024-KEY-004',
     purchasedDate: '2024-03-01',
     expiryDate: '2025-03-01',
     purchasedFrom: 'Online',
@@ -443,6 +446,7 @@ export const mockLicenses: LicenseRecord[] = [
     licenseType: 'Firewall',
     licenseOf: 'Fortinet FortiGate',
     serialNumber: 'FG-2024-7788',
+    productKey: 'FGT-2024-KEY-7788',
     purchasedDate: '2024-02-10',
     expiryDate: '2026-02-10',
     purchasedFrom: 'Vendor',
