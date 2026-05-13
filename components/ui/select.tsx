@@ -103,6 +103,10 @@ function SelectItem({
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Item>) {
+  if (typeof props.value === 'string' && props.value.trim() === '') {
+    return null;
+  }
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
