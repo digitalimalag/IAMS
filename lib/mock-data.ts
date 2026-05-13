@@ -115,6 +115,7 @@ export interface Asset {
   serialNumber: string;
   manufacturer: string;
   model: string;
+  vendor?: string;
   designation?: string;
   processor?: string;
   ram?: string;

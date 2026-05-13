@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, X } from 'lucide-react';
+import { mockVendors } from '@/lib/mock-data';
 
 export type AssetStorageAddon = {
   capacity: string;
@@ -28,6 +29,7 @@ export type AssetFormValues = {
   serialNumber: string;
   manufacturer: string;
   model: string;
+  vendor: string;
   designation: string;
   processor: string;
   ram: string;
@@ -80,6 +82,7 @@ const defaultValues: AssetFormValues = {
   serialNumber: '',
   manufacturer: '',
   model: '',
+  vendor: '',
   designation: '',
   processor: '',
   ram: '',
@@ -145,6 +148,7 @@ function parseRamSummary(ram: string): AssetRamModule[] {
 export function AssetForm({ title, description, submitLabel, cancelHref, initialValues, onSubmit, error }: AssetFormProps) {
   const [formData, setFormData] = useState<AssetFormValues>(defaultValues);
   const [customType, setCustomType] = useState('');
+  const [vendorOptions, setVendorOptions] = useState<string[]>(mockVendors.map((vendor) => vendor.name));
 
   useEffect(() => {
     const merged = { ...defaultValues, ...initialValues };
@@ -164,10 +168,37 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
     setCustomType('');
   }, [initialValues]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const stored = localStorage.getItem('it_vendors');
+      if (!stored) {
+        setVendorOptions(Array.from(new Set(mockVendors.map((vendor) => vendor.name))));
+        return;
+      }
+
+      const parsed = JSON.parse(stored) as Array<{ name?: string }>;
+      const names = parsed
+        .map((vendor) => vendor.name?.trim())
+        .filter((name): name is string => Boolean(name));
+      setVendorOptions(Array.from(new Set(names.length > 0 ? names : mockVendors.map((vendor) => vendor.name))));
+    } catch {
+      setVendorOptions(Array.from(new Set(mockVendors.map((vendor) => vendor.name))));
+    }
+  }, []);
+
   const effectiveType = useMemo(() => {
     if (formData.type === '__manual__') return customType.trim();
     return formData.type;
   }, [customType, formData.type]);
+  const resolvedVendorOptions = useMemo(() => {
+    const currentVendor = formData.vendor.trim();
+    if (currentVendor && !vendorOptions.includes(currentVendor)) {
+      return [...vendorOptions, currentVendor];
+    }
+    return vendorOptions;
+  }, [formData.vendor, vendorOptions]);
 
   const showComputerSpecs = ['Desktop', 'Laptop', 'Server'].includes(effectiveType);
   const showStorageAddonField = ['Desktop', 'Laptop', 'Server', 'USB HDD/SSD'].includes(effectiveType);
@@ -310,29 +341,16 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
             <FieldLabel>Model</FieldLabel>
             <Input value={formData.model} onChange={(e) => handleChange('model', e.target.value)} placeholder="XPS 15" />
           </FieldGroup>
-          <FieldGroup>
-            <FieldLabel>Owner</FieldLabel>
-            <Input value={formData.owner} onChange={(e) => handleChange('owner', e.target.value)} placeholder="John Doe" />
-          </FieldGroup>
-          <FieldGroup>
-            <FieldLabel>Designation</FieldLabel>
-            <Input value={formData.designation} onChange={(e) => handleChange('designation', e.target.value)} placeholder="e.g., Senior Designer" />
-          </FieldGroup>
-          <FieldGroup>
-            <FieldLabel>Department</FieldLabel>
-            <Select value={formData.department} onValueChange={(value) => handleChange('department', value)}>
-              <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-              <SelectContent>{DEPARTMENTS.map((dept) => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
-            </Select>
-          </FieldGroup>
-          <FieldGroup>
-            <FieldLabel>Purchase Date</FieldLabel>
-            <Input type="date" value={formData.purchaseDate} onChange={(e) => handleChange('purchaseDate', e.target.value)} />
-          </FieldGroup>
-          <FieldGroup>
-            <FieldLabel>Warranty Expiry</FieldLabel>
-            <Input type="date" value={formData.warrantyExpiry} onChange={(e) => handleChange('warrantyExpiry', e.target.value)} />
-          </FieldGroup>
+          {showComputerSpecs && (
+            <FieldGroup>
+              <FieldLabel>Processor</FieldLabel>
+              <Input
+                value={formData.processor}
+                onChange={(e) => handleChange('processor', e.target.value)}
+                placeholder="Intel Core i7-13700H"
+              />
+            </FieldGroup>
+          )}
           <FieldGroup>
             <FieldLabel>Status</FieldLabel>
             <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
@@ -450,6 +468,48 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
             <Input value={formData.storage} onChange={(e) => handleChange('storage', e.target.value)} placeholder="2 TB, 8 GB, 24-Port" />
           </FieldGroup>
         )}
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FieldGroup>
+            <FieldLabel>Owner</FieldLabel>
+            <Input value={formData.owner} onChange={(e) => handleChange('owner', e.target.value)} placeholder="John Doe" />
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel>Designation</FieldLabel>
+            <Input value={formData.designation} onChange={(e) => handleChange('designation', e.target.value)} placeholder="e.g., Senior Designer" />
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel>Department</FieldLabel>
+            <Select value={formData.department} onValueChange={(value) => handleChange('department', value)}>
+              <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+              <SelectContent>{DEPARTMENTS.map((dept) => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
+            </Select>
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel>Vendor</FieldLabel>
+            <Select value={formData.vendor} onValueChange={(value) => handleChange('vendor', value === '__blank__' ? '' : value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select vendor (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__blank__">Unknown / Blank</SelectItem>
+                {resolvedVendorOptions.map((vendor) => (
+                  <SelectItem key={vendor} value={vendor}>
+                    {vendor}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel>Purchase Date</FieldLabel>
+            <Input type="date" value={formData.purchaseDate} onChange={(e) => handleChange('purchaseDate', e.target.value)} />
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel>Warranty Expiry</FieldLabel>
+            <Input type="date" value={formData.warrantyExpiry} onChange={(e) => handleChange('warrantyExpiry', e.target.value)} />
+          </FieldGroup>
+        </div>
 
         <FieldGroup>
           <FieldLabel>OS Installed</FieldLabel>

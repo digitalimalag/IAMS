@@ -55,6 +55,7 @@ export default function NewAssetPage() {
       serialNumber: values.serialNumber,
       manufacturer: values.manufacturer,
       model: values.model,
+      vendor: values.vendor || '',
       designation: values.designation,
       processor: values.processor || undefined,
       ram: values.ram || undefined,
