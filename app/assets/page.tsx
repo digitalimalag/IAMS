@@ -22,8 +22,15 @@ import { TransferAssetModal, type AssetTransferRecord } from '@/components/modal
 import { ExportButtons } from '@/components/export-buttons';
 import type { Session } from '@/lib/auth';
 import { getPlanConfig, normalizePlan } from '@/lib/subscription';
+import { 
+  ASSET_STORAGE_KEY,
+  assetDbRowToRecord,
+  canUseAssetSupabase,
+  getAssetOrganizationId,
+  getAssetSupabaseClient,
+  normalizeAssetRecord,
+} from '@/lib/assets';
 
-const ASSET_STORAGE_KEY = 'it_assets';
 const ASSET_TRANSFER_HISTORY_KEY = 'asset_transfer_history';
 
 export default function AssetsPage() {
@@ -43,22 +50,50 @@ export default function AssetsPage() {
 
   useEffect(() => {
     const sessionStr = localStorage.getItem('session');
-    if (sessionStr) {
+    const currentSession = sessionStr ? (() => {
       try {
-        setSession(JSON.parse(sessionStr));
+        return JSON.parse(sessionStr) as Session;
       } catch {
-        setSession(null);
+        return null;
       }
-    }
+    })() : null;
+    setSession(currentSession);
 
-    const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
-    if (storedAssets) {
-      try {
-        setAssets(JSON.parse(storedAssets));
-      } catch {
-        setAssets(mockAssets);
+    const loadAssets = async () => {
+      if (canUseAssetSupabase(currentSession)) {
+        try {
+          const supabase = getAssetSupabaseClient();
+          const orgId = getAssetOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('assets')
+            .select('*')
+            .eq('organization_id', orgId)
+            .order('created_at', { ascending: false });
+
+          if (!error && Array.isArray(data) && data.length > 0) {
+            setAssets(data.map((row) => assetDbRowToRecord(row)));
+            return;
+          }
+        } catch {
+          // Fallback below
+        }
       }
-    }
+
+      const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
+      if (storedAssets) {
+        try {
+          setAssets((JSON.parse(storedAssets) as Asset[]).map((asset) => normalizeAssetRecord(asset)));
+          return;
+        } catch {
+          setAssets(mockAssets.map((asset) => normalizeAssetRecord(asset)));
+          return;
+        }
+      }
+
+      setAssets(mockAssets.map((asset) => normalizeAssetRecord(asset)));
+    };
+
+    void loadAssets();
 
     const storedHistory = localStorage.getItem(ASSET_TRANSFER_HISTORY_KEY);
     if (storedHistory) {
@@ -88,11 +123,21 @@ export default function AssetsPage() {
     return assets;
   }, [assets, session]);
 
-  const handleDeleteAsset = (id: string) => {
+  const handleDeleteAsset = async (id: string) => {
+    if (canUseAssetSupabase(session)) {
+      try {
+        const supabase = getAssetSupabaseClient();
+        const orgId = getAssetOrganizationId(session);
+        const { error } = await supabase.from('assets').delete().eq('id', id).eq('organization_id', orgId);
+        if (error) return;
+      } catch {
+        // Fallback below
+      }
+    }
     persistAssets(assets.filter(a => a.id !== id));
   };
 
-  const handleTransferAsset = (record: AssetTransferRecord) => {
+  const handleTransferAsset = async (record: AssetTransferRecord) => {
     const asset = assets.find((a) => a.id === record.assetId);
     if (!asset) return;
 
@@ -102,6 +147,24 @@ export default function AssetsPage() {
       department: record.toType === 'department' ? record.toValue : asset.department,
       assignedToUserId: record.toType === 'employee' ? undefined : asset.assignedToUserId,
     };
+
+    if (canUseAssetSupabase(session)) {
+      try {
+        const supabase = getAssetSupabaseClient();
+        const orgId = getAssetOrganizationId(session);
+        await supabase
+          .from('assets')
+          .update({
+            owner: nextAsset.owner,
+            department: nextAsset.department,
+            assigned_to_profile_id: nextAsset.assignedToUserId || null,
+          })
+          .eq('id', asset.id)
+          .eq('organization_id', orgId);
+      } catch {
+        // Keep local fallback below.
+      }
+    }
 
     persistAssets(assets.map((a) => (a.id === asset.id ? nextAsset : a)));
     persistTransferHistory([record, ...transferHistory]);

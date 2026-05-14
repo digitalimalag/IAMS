@@ -9,6 +9,7 @@ import { FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, X } from 'lucide-react';
 import { mockVendors } from '@/lib/mock-data';
+import { normalizeAssetType } from '@/lib/assets';
 
 export type AssetStorageAddon = {
   capacity: string;
@@ -154,6 +155,7 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
     const merged = { ...defaultValues, ...initialValues };
     setFormData({
       ...merged,
+      type: normalizeAssetType((initialValues?.type || (initialValues as Record<string, unknown> | undefined)?.assetType || merged.type) as string) as string,
       storageAddons: Array.isArray(initialValues?.storageAddons) && initialValues.storageAddons.length > 0
         ? initialValues.storageAddons
         : initialValues?.storage
@@ -189,8 +191,9 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
   }, []);
 
   const effectiveType = useMemo(() => {
-    if (formData.type === '__manual__') return customType.trim();
-    return formData.type;
+    const normalized = normalizeAssetType(formData.type);
+    if (normalized === '__manual__') return customType.trim();
+    return normalized;
   }, [customType, formData.type]);
   const resolvedVendorOptions = useMemo(() => {
     const currentVendor = formData.vendor.trim();

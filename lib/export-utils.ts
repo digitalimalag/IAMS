@@ -57,6 +57,7 @@ export function exportAssetsToCSV(assets: Asset[]) {
     'Serial Number': asset.serialNumber,
     'Manufacturer': asset.manufacturer,
     'Model': asset.model,
+    'Vendor': asset.vendor || '-',
     'Processor': asset.processor || '-',
     'RAM': formatRamModules(asset.ramModules) !== '-' ? formatRamModules(asset.ramModules) : (asset.ram || '-'),
     'RAM Type': asset.ramType || '-',

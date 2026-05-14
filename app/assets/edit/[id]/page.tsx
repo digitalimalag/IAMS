@@ -9,8 +9,15 @@ import { AssetForm, type AssetFormValues } from '@/components/forms/asset-form';
 import { mockAssets } from '@/lib/mock-data';
 import type { Asset } from '@/lib/mock-data';
 import type { Session } from '@/lib/auth';
-
-const ASSET_STORAGE_KEY = 'it_assets';
+import {
+  ASSET_STORAGE_KEY,
+  assetDbRowToRecord,
+  assetInputToPayload,
+  canUseAssetSupabase,
+  getAssetOrganizationId,
+  getAssetSupabaseClient,
+  normalizeAssetRecord,
+} from '@/lib/assets';
 
 export default function EditAssetPage() {
   const router = useRouter();
@@ -22,17 +29,46 @@ export default function EditAssetPage() {
 
   useEffect(() => {
     const sessionStr = localStorage.getItem('session');
-    if (sessionStr) {
-      try {
-        setSession(JSON.parse(sessionStr));
-      } catch {
-        setSession(null);
-      }
-    }
+    const currentSession = sessionStr
+      ? (() => {
+          try {
+            return JSON.parse(sessionStr) as Session;
+          } catch {
+            return null;
+          }
+        })()
+      : null;
+    setSession(currentSession);
 
-    const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
-    const existingAssets: Asset[] = storedAssets ? JSON.parse(storedAssets) : mockAssets;
-    setAsset(existingAssets.find((item) => item.id === assetId) || null);
+    const loadAsset = async () => {
+      if (canUseAssetSupabase(currentSession)) {
+        try {
+          const supabase = getAssetSupabaseClient();
+          const orgId = getAssetOrganizationId(currentSession);
+          const { data } = await supabase
+            .from('assets')
+            .select('*')
+            .eq('id', assetId)
+            .eq('organization_id', orgId)
+            .maybeSingle();
+
+          if (data) {
+            setAsset(assetDbRowToRecord(data));
+            return;
+          }
+        } catch {
+          // Fallback below
+        }
+      }
+
+      const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
+      const existingAssets: Asset[] = storedAssets
+        ? (JSON.parse(storedAssets) as Asset[]).map((item) => normalizeAssetRecord(item))
+        : mockAssets.map((item) => normalizeAssetRecord(item));
+      setAsset(existingAssets.find((item) => item.id === assetId) || null);
+    };
+
+    void loadAsset();
   }, [assetId]);
 
   const initialValues = useMemo<Partial<AssetFormValues> | undefined>(() => {
@@ -40,7 +76,7 @@ export default function EditAssetPage() {
     return {
       id: asset.id,
       name: asset.name,
-      type: asset.type,
+      type: asset.type || '',
       serialNumber: asset.serialNumber,
       manufacturer: asset.manufacturer,
       model: asset.model,
@@ -78,7 +114,7 @@ export default function EditAssetPage() {
     };
   }, [asset]);
 
-  const handleSubmit = (values: AssetFormValues) => {
+  const handleSubmit = async (values: AssetFormValues) => {
     setError('');
     if (!asset) {
       setError('Asset not found.');
@@ -86,7 +122,9 @@ export default function EditAssetPage() {
     }
 
     const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
-    const existingAssets: Asset[] = storedAssets ? JSON.parse(storedAssets) : mockAssets;
+    const existingAssets: Asset[] = storedAssets
+      ? (JSON.parse(storedAssets) as Asset[]).map((item) => normalizeAssetRecord(item))
+      : mockAssets.map((item) => normalizeAssetRecord(item));
 
     const updatedAsset: Asset = {
       ...asset,
@@ -127,6 +165,26 @@ export default function EditAssetPage() {
       cost: Number(values.cost) || 0,
       notes: values.notes || '',
     };
+
+    if (canUseAssetSupabase(session)) {
+      try {
+        const supabase = getAssetSupabaseClient();
+        const orgId = getAssetOrganizationId(session);
+        const { error } = await supabase
+          .from('assets')
+          .update(assetInputToPayload(values, session))
+          .eq('id', asset.id)
+          .eq('organization_id', orgId);
+
+        if (error) {
+          setError(error.message);
+          return;
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to update asset.');
+        return;
+      }
+    }
 
     localStorage.setItem(
       ASSET_STORAGE_KEY,

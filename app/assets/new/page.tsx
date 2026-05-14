@@ -10,8 +10,14 @@ import { mockAssets } from '@/lib/mock-data';
 import type { Asset } from '@/lib/mock-data';
 import type { Session } from '@/lib/auth';
 import { getPlanConfig, normalizePlan } from '@/lib/subscription';
-
-const ASSET_STORAGE_KEY = 'it_assets';
+import {
+  ASSET_STORAGE_KEY,
+  assetDbRowToRecord,
+  assetInputToPayload,
+  canUseAssetSupabase,
+  getAssetSupabaseClient,
+  normalizeAssetRecord,
+} from '@/lib/assets';
 
 export default function NewAssetPage() {
   const router = useRouter();
@@ -32,7 +38,7 @@ export default function NewAssetPage() {
     }
   }, []);
 
-  const handleSubmit = (values: AssetFormValues) => {
+  const handleSubmit = async (values: AssetFormValues) => {
     setError('');
 
     if (!values.name || !values.type || !values.serialNumber || !values.assetTag) {
@@ -40,8 +46,39 @@ export default function NewAssetPage() {
       return;
     }
 
-    const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
-    const existingAssets: Asset[] = storedAssets ? JSON.parse(storedAssets) : mockAssets;
+    let existingAssets: Asset[] = mockAssets.map((asset) => normalizeAssetRecord(asset));
+
+    if (canUseAssetSupabase(session)) {
+      try {
+        const supabase = getAssetSupabaseClient();
+        const { data } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('organization_id', session?.organizationId?.trim() || '')
+          .order('created_at', { ascending: false });
+        if (Array.isArray(data) && data.length > 0) {
+          existingAssets = data.map((row) => assetDbRowToRecord(row));
+        }
+      } catch {
+        const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
+        if (storedAssets) {
+          try {
+            existingAssets = (JSON.parse(storedAssets) as Asset[]).map((asset) => normalizeAssetRecord(asset));
+          } catch {
+            existingAssets = mockAssets.map((asset) => normalizeAssetRecord(asset));
+          }
+        }
+      }
+    } else {
+      const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
+      if (storedAssets) {
+        try {
+          existingAssets = (JSON.parse(storedAssets) as Asset[]).map((asset) => normalizeAssetRecord(asset));
+        } catch {
+          existingAssets = mockAssets.map((asset) => normalizeAssetRecord(asset));
+        }
+      }
+    }
 
     if (existingAssets.length >= assetLimit) {
       setError('Free plan allows only 5 assets. Please upgrade your plan to add more.');
@@ -88,6 +125,20 @@ export default function NewAssetPage() {
       notes: values.notes || '',
       assignedToUserId: session?.userId,
     };
+
+    if (canUseAssetSupabase(session)) {
+      try {
+        const supabase = getAssetSupabaseClient();
+        const { error } = await supabase.from('assets').insert(assetInputToPayload(values, session));
+        if (error) {
+          setError(error.message);
+          return;
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save asset.');
+        return;
+      }
+    }
 
     localStorage.setItem(ASSET_STORAGE_KEY, JSON.stringify([...existingAssets, newAsset]));
     router.push('/assets');

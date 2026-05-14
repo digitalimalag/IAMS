@@ -83,6 +83,7 @@ export function AssetTable({ assets, onEdit, onTransfer, onDelete }: AssetTableP
             <TableHead className="text-xs uppercase tracking-wide">Asset Tag</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">Name</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">Type</TableHead>
+            <TableHead className="text-xs uppercase tracking-wide">Vendor</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">Processor</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">RAM</TableHead>
             <TableHead className="text-xs uppercase tracking-wide">Storage</TableHead>
@@ -106,6 +107,7 @@ export function AssetTable({ assets, onEdit, onTransfer, onDelete }: AssetTableP
                   {asset.type}
                 </Badge>
               </TableCell>
+              <TableCell className="p-3 text-sm text-muted-foreground">{asset.vendor || '-'}</TableCell>
               <TableCell className="p-3 text-sm text-muted-foreground">{asset.processor || '-'}</TableCell>
               <TableCell className="p-3 text-sm text-muted-foreground">{formatRam(asset)}</TableCell>
               <TableCell className="p-3 text-sm text-muted-foreground">{asset.storage || '-'}</TableCell>
