@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { mockLicenses, type LicenseRecord } from '@/lib/mock-data';
 import { formatDateYMD } from '@/lib/date';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -22,8 +23,8 @@ import {
   getLicenseOrganizationId,
   licenseRowToRecord,
   readStoredSession,
-  writeLicenseAuditLog,
 } from '@/lib/licenses';
+import { writeAuditLog } from '@/lib/audit';
 
 export default function LicensesPage() {
   const router = useRouter();
@@ -33,6 +34,10 @@ export default function LicensesPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<LicenseRecord | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const currentSession = readStoredSession();
@@ -86,55 +91,65 @@ export default function LicensesPage() {
     });
   }, [licenses, searchTerm, typeFilter]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     setActionError('');
     const deletedLicense = licenses.find((license) => license.id === id) || null;
+    setDeleteTarget(deletedLicense);
+    setDeleteConfirmation('');
+    setDeleteReason('');
+    setDeleteError('');
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    if (deleteConfirmation.trim().toLowerCase() !== deleteTarget.serialNumber.trim().toLowerCase()) {
+      setDeleteError('Please type the exact Serial Number to confirm deletion.');
+      return;
+    }
+    if (!deleteReason.trim()) {
+      setDeleteError('Please enter a delete reason before approving.');
+      return;
+    }
+    setDeleteError('');
 
     if (canUseLicenseSupabase(session)) {
       try {
         const supabase = createSupabaseBrowserClient();
         const orgId = getLicenseOrganizationId(session);
-        const { error } = await supabase.from('licenses').delete().eq('id', id).eq('organization_id', orgId);
+        const { error } = await supabase.from('licenses').delete().eq('id', deleteTarget.id).eq('organization_id', orgId);
         if (error) {
           setActionError(error.message);
           return;
         }
-        await writeLicenseAuditLog(session, 'delete_license', id, {
-          licenseOf: deletedLicense?.licenseOf || '',
-          serialNumber: deletedLicense?.serialNumber || '',
-          productKey: deletedLicense?.productKey || '',
-          licenseType: deletedLicense?.licenseType || '',
+        await writeAuditLog(session, 'delete_license', 'license', deleteTarget.id, {
+          licenseOf: deleteTarget.licenseOf,
+          serialNumber: deleteTarget.serialNumber,
+          productKey: deleteTarget.productKey,
+          licenseType: deleteTarget.licenseType,
+          reason: deleteReason.trim(),
         });
       } catch (err) {
         setActionError(err instanceof Error ? err.message : 'Failed to delete license.');
         return;
       }
     } else {
-      const next = licenses.filter((license) => license.id !== id);
+      const next = licenses.filter((license) => license.id !== deleteTarget.id);
       setLicenses(next);
       localStorage.setItem(LICENSE_STORAGE_KEY, JSON.stringify(next));
-      if (deletedLicense) {
-        const auditLogsRaw = localStorage.getItem('audit_logs');
-        const existingLogs = auditLogsRaw ? JSON.parse(auditLogsRaw) : [];
-        const nextLog = {
-          id: `audit-${Date.now()}`,
-          created_at: new Date().toISOString(),
-          action: 'delete_license',
-          entity_type: 'license',
-          entity_id: id,
-          metadata: {
-            licenseOf: deletedLicense.licenseOf,
-            serialNumber: deletedLicense.serialNumber,
-            productKey: deletedLicense.productKey,
-            licenseType: deletedLicense.licenseType,
-          },
-        };
-        localStorage.setItem('audit_logs', JSON.stringify([nextLog, ...existingLogs]));
-      }
-      return;
+      await writeAuditLog(session, 'delete_license', 'license', deleteTarget.id, {
+        licenseOf: deleteTarget.licenseOf,
+        serialNumber: deleteTarget.serialNumber,
+        productKey: deleteTarget.productKey,
+        licenseType: deleteTarget.licenseType,
+        reason: deleteReason.trim(),
+      });
     }
 
-    setLicenses((current) => current.filter((license) => license.id !== id));
+    setLicenses((current) => current.filter((license) => license.id !== deleteTarget.id));
+    setDeleteTarget(null);
+    setDeleteConfirmation('');
+    setDeleteReason('');
+    setDeleteError('');
   };
 
   return (
@@ -267,6 +282,37 @@ export default function LicensesPage() {
               </div>
             </CardContent>
           </Card>
+
+          <DeleteConfirmDialog
+            open={Boolean(deleteTarget)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setDeleteTarget(null);
+                setDeleteConfirmation('');
+                setDeleteReason('');
+                setDeleteError('');
+              }
+            }}
+            title="Delete License?"
+            description={
+              <>
+                This will permanently remove <strong>{deleteTarget?.licenseOf}</strong> from the license register.
+              </>
+            }
+            confirmationLabel="Serial Number"
+            confirmationValue={deleteConfirmation}
+            onConfirmationValueChange={setDeleteConfirmation}
+            reason={deleteReason}
+            onReasonChange={setDeleteReason}
+            onConfirm={confirmDelete}
+            error={deleteError}
+            confirmLabel="Delete License"
+            confirmDisabled={
+              !deleteTarget ||
+              deleteConfirmation.trim().toLowerCase() !== deleteTarget.serialNumber.trim().toLowerCase() ||
+              !deleteReason.trim()
+            }
+          />
         </div>
       </DashboardLayout>
     </SessionCheck>

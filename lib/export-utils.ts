@@ -16,6 +16,40 @@ function formatRamModules(ramModules?: { capacity: string; ramType: string; ramM
     .join(', ');
 }
 
+function formatRamTypes(asset: Asset) {
+  if (asset.ramType) return asset.ramType;
+  if (!Array.isArray(asset.ramModules) || asset.ramModules.length === 0) return '-';
+
+  const ramTypes = Array.from(
+    new Set(
+      asset.ramModules
+        .map((module) => module.ramType?.trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  return ramTypes.length > 0 ? ramTypes.join(', ') : '-';
+}
+
+function formatRamMhz(asset: Asset) {
+  if (asset.ramMhz) {
+    return asset.ramMhz.toLowerCase().includes('mhz') ? asset.ramMhz : `${asset.ramMhz} MHz`;
+  }
+  if (!Array.isArray(asset.ramModules) || asset.ramModules.length === 0) return '-';
+
+  const ramMhzValues = Array.from(
+    new Set(
+      asset.ramModules
+        .map((module) => module.ramMhz?.trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  return ramMhzValues.length > 0
+    ? ramMhzValues.map((value) => (value.toLowerCase().includes('mhz') ? value : `${value} MHz`)).join(', ')
+    : '-';
+}
+
 // CSV Export Functions
 export function exportToCSV<T>(data: T[], filename: string) {
   if (data.length === 0) {
@@ -60,8 +94,8 @@ export function exportAssetsToCSV(assets: Asset[]) {
     'Vendor': asset.vendor || '-',
     'Processor': asset.processor || '-',
     'RAM': formatRamModules(asset.ramModules) !== '-' ? formatRamModules(asset.ramModules) : (asset.ram || '-'),
-    'RAM Type': asset.ramType || '-',
-    'RAM MHz': asset.ramMhz || '-',
+    'RAM Type': formatRamTypes(asset),
+    'RAM MHz': formatRamMhz(asset),
     'Storage': formatStorageAddons(asset.storageAddons) !== '-' ? formatStorageAddons(asset.storageAddons) : (asset.storage || '-'),
     'OS': asset.osInstalled || '-',
     'Status': asset.status,

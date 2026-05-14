@@ -11,16 +11,26 @@ import { Plus, Search } from 'lucide-react';
 import { mockDepartments } from '@/lib/mock-data';
 import { CompanyTable } from '@/components/tables/company-table';
 import { AddCompanyModal } from '@/components/modals/add-company-modal';
+import type { Session } from '@/lib/auth';
+import { readStoredSession } from '@/lib/licenses';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
+import { writeAuditLog } from '@/lib/audit';
 
 const DEPARTMENT_STORAGE_KEY = 'it_departments';
 
 function CompaniesContent() {
+  const [session, setSession] = useState<Session | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<any | null>(null);
   const [departments, setDepartments] = useState(mockDepartments);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
+    setSession(readStoredSession());
     const storedDepartments = localStorage.getItem(DEPARTMENT_STORAGE_KEY);
     if (!storedDepartments) return;
     try {
@@ -52,7 +62,35 @@ function CompaniesContent() {
   };
 
   const handleDeleteDepartment = (id: string) => {
-    persistDepartments(departments.filter(d => d.id !== id));
+    const dept = departments.find((item) => item.id === id) || null;
+    setDeleteTarget(dept);
+    setDeleteConfirmation('');
+    setDeleteReason('');
+    setDeleteError('');
+  };
+
+  const confirmDeleteDepartment = async () => {
+    if (!deleteTarget) return;
+    if (deleteConfirmation.trim().toLowerCase() !== deleteTarget.name.trim().toLowerCase()) {
+      setDeleteError('Please type the exact Department Name to confirm deletion.');
+      return;
+    }
+    if (!deleteReason.trim()) {
+      setDeleteError('Please enter a delete reason before approving.');
+      return;
+    }
+
+    persistDepartments(departments.filter(d => d.id !== deleteTarget.id));
+    await writeAuditLog(session, 'delete_department', 'department', deleteTarget.id, {
+      departmentName: deleteTarget.name,
+      manager: deleteTarget.manager,
+      reason: deleteReason.trim(),
+    });
+
+    setDeleteTarget(null);
+    setDeleteConfirmation('');
+    setDeleteReason('');
+    setDeleteError('');
   };
 
   // Filter departments
@@ -201,6 +239,37 @@ function CompaniesContent() {
         }}
         onSubmit={handleDepartmentSubmit}
         editingDepartment={editingDepartment}
+      />
+
+      <DeleteConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteConfirmation('');
+            setDeleteReason('');
+            setDeleteError('');
+          }
+        }}
+        title="Delete Department?"
+        description={
+          <>
+            This will permanently remove <strong>{deleteTarget?.name}</strong> and its local department record.
+          </>
+        }
+        confirmationLabel="Department Name"
+        confirmationValue={deleteConfirmation}
+        onConfirmationValueChange={setDeleteConfirmation}
+        reason={deleteReason}
+        onReasonChange={setDeleteReason}
+        onConfirm={confirmDeleteDepartment}
+        error={deleteError}
+        confirmLabel="Delete Department"
+        confirmDisabled={
+          !deleteTarget ||
+          deleteConfirmation.trim().toLowerCase() !== deleteTarget.name.trim().toLowerCase() ||
+          !deleteReason.trim()
+        }
       />
     </DashboardLayout>
   );

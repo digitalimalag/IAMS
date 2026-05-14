@@ -13,6 +13,8 @@ import { IssueTable } from '@/components/tables/issue-table';
 import { ExportButtons } from '@/components/export-buttons';
 import { generateAssetIssueFormPDF } from '@/lib/export-utils';
 import type { Session } from '@/lib/auth';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
+import { writeAuditLog } from '@/lib/audit';
 
 const ISSUE_STORAGE_KEY = 'issues';
 
@@ -24,6 +26,10 @@ export default function IssuesPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [issues, setIssues] = useState(mockIssues);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const sessionStr = localStorage.getItem('session');
@@ -77,7 +83,37 @@ export default function IssuesPage() {
   const uniqueDepartments = Array.from(new Set(visibleIssues.map((issue) => issue.department)));
 
   const handleDeleteIssue = (id: string) => {
-    persistIssues(issues.filter((issue) => issue.id !== id));
+    const issue = issues.find((item) => item.id === id) || null;
+    setDeleteTarget(issue);
+    setDeleteConfirmation('');
+    setDeleteReason('');
+    setDeleteError('');
+  };
+
+  const confirmDeleteIssue = async () => {
+    if (!deleteTarget) return;
+    if (deleteConfirmation.trim().toLowerCase() !== deleteTarget.id.trim().toLowerCase()) {
+      setDeleteError('Please type the exact Ticket ID to confirm deletion.');
+      return;
+    }
+    if (!deleteReason.trim()) {
+      setDeleteError('Please enter a delete reason before approving.');
+      return;
+    }
+
+    persistIssues(issues.filter((issue) => issue.id !== deleteTarget.id));
+    await writeAuditLog(session, 'delete_issue', 'issue', deleteTarget.id, {
+      title: deleteTarget.title,
+      assignedTo: deleteTarget.assignedTo,
+      designation: deleteTarget.designation || '',
+      department: deleteTarget.department,
+      reason: deleteReason.trim(),
+    });
+
+    setDeleteTarget(null);
+    setDeleteConfirmation('');
+    setDeleteReason('');
+    setDeleteError('');
   };
 
   return (
@@ -182,6 +218,37 @@ export default function IssuesPage() {
             />
           </CardContent>
         </Card>
+
+        <DeleteConfirmDialog
+          open={Boolean(deleteTarget)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteTarget(null);
+              setDeleteConfirmation('');
+              setDeleteReason('');
+              setDeleteError('');
+            }
+          }}
+          title="Delete Ticket?"
+          description={
+            <>
+              This will permanently remove <strong>{deleteTarget?.title}</strong> from the help desk records.
+            </>
+          }
+          confirmationLabel="Ticket ID"
+          confirmationValue={deleteConfirmation}
+          onConfirmationValueChange={setDeleteConfirmation}
+          reason={deleteReason}
+          onReasonChange={setDeleteReason}
+          onConfirm={confirmDeleteIssue}
+          error={deleteError}
+          confirmLabel="Delete Ticket"
+          confirmDisabled={
+            !deleteTarget ||
+            deleteConfirmation.trim().toLowerCase() !== deleteTarget.id.trim().toLowerCase() ||
+            !deleteReason.trim()
+          }
+        />
       </div>
     </DashboardLayout>
   );

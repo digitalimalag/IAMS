@@ -19,6 +19,8 @@ import { mockNetworkDevices } from '@/lib/mock-data';
 import { NetworkDeviceTable } from '@/components/tables/network-device-table';
 import { ExportButtons } from '@/components/export-buttons';
 import type { Session } from '@/lib/auth';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
+import { writeAuditLog } from '@/lib/audit';
 
 const DEVICE_STORAGE_KEY = 'it_network_devices';
 
@@ -30,6 +32,10 @@ export default function NetworkDevicesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [devices, setDevices] = useState(mockNetworkDevices);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const sessionStr = localStorage.getItem('session');
@@ -56,7 +62,35 @@ export default function NetworkDevicesPage() {
   };
 
   const handleDeleteDevice = (id: string) => {
-    persistDevices(devices.filter(d => d.id !== id));
+    const device = devices.find((item) => item.id === id) || null;
+    setDeleteTarget(device);
+    setDeleteConfirmation('');
+    setDeleteReason('');
+    setDeleteError('');
+  };
+
+  const confirmDeleteDevice = async () => {
+    if (!deleteTarget) return;
+    if (deleteConfirmation.trim().toLowerCase() !== deleteTarget.name.trim().toLowerCase()) {
+      setDeleteError('Please type the exact Device Name to confirm deletion.');
+      return;
+    }
+    if (!deleteReason.trim()) {
+      setDeleteError('Please enter a delete reason before approving.');
+      return;
+    }
+
+    setDeleteError('');
+    persistDevices(devices.filter((device) => device.id !== deleteTarget.id));
+    await writeAuditLog(session, 'delete_network_device', 'network_device', deleteTarget.id, {
+      deviceName: deleteTarget.name,
+      deviceModel: deleteTarget.deviceModel || '',
+      deviceBrand: deleteTarget.deviceBrand || '',
+      reason: deleteReason.trim(),
+    });
+    setDeleteTarget(null);
+    setDeleteConfirmation('');
+    setDeleteReason('');
   };
 
   const visibleDevices = useMemo(() => {
@@ -197,6 +231,37 @@ export default function NetworkDevicesPage() {
             />
           </CardContent>
         </Card>
+
+        <DeleteConfirmDialog
+          open={Boolean(deleteTarget)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteTarget(null);
+              setDeleteConfirmation('');
+              setDeleteReason('');
+              setDeleteError('');
+            }
+          }}
+          title="Delete Network Device?"
+          description={
+            <>
+              This will permanently remove <strong>{deleteTarget?.name}</strong> from the network device list.
+            </>
+          }
+          confirmationLabel="Device Name"
+          confirmationValue={deleteConfirmation}
+          onConfirmationValueChange={setDeleteConfirmation}
+          reason={deleteReason}
+          onReasonChange={setDeleteReason}
+          onConfirm={confirmDeleteDevice}
+          error={deleteError}
+          confirmLabel="Delete Device"
+          confirmDisabled={
+            !deleteTarget ||
+            deleteConfirmation.trim().toLowerCase() !== deleteTarget.name.trim().toLowerCase() ||
+            !deleteReason.trim()
+          }
+        />
       </div>
     </DashboardLayout>
   );

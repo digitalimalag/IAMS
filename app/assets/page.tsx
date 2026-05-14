@@ -7,7 +7,6 @@ import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -21,7 +20,9 @@ import type { Asset } from '@/lib/mock-data';
 import { AssetTable } from '@/components/tables/asset-table';
 import { TransferAssetModal, type AssetTransferRecord } from '@/components/modals/transfer-asset-modal';
 import { ExportButtons } from '@/components/export-buttons';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import type { Session } from '@/lib/auth';
+import { writeAuditLog } from '@/lib/audit';
 import { getPlanConfig, normalizePlan } from '@/lib/subscription';
 import { 
   ASSET_STORAGE_KEY,
@@ -44,6 +45,8 @@ export default function AssetsPage() {
   const [transferAsset, setTransferAsset] = useState<Asset | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [assets, setAssets] = useState(mockAssets);
   const [transferHistory, setTransferHistory] = useState<AssetTransferRecord[]>([]);
   const plan = normalizePlan(session?.plan);
@@ -131,13 +134,21 @@ export default function AssetsPage() {
     if (!asset) return;
     setDeleteTarget(asset);
     setDeleteConfirmation('');
+    setDeleteReason('');
+    setDeleteError('');
   };
 
   const confirmDeleteAsset = async () => {
     if (!deleteTarget) return;
     if (deleteConfirmation.trim().toLowerCase() !== deleteTarget.assetTag.trim().toLowerCase()) {
+      setDeleteError('Please type the exact Asset Tag to confirm deletion.');
       return;
     }
+    if (!deleteReason.trim()) {
+      setDeleteError('Please enter a deletion reason before approving.');
+      return;
+    }
+    setDeleteError('');
 
     setTransferAsset((current) => (current?.id === deleteTarget.id ? null : current));
 
@@ -154,8 +165,16 @@ export default function AssetsPage() {
       }
     }
 
+    await writeAuditLog(session, 'delete_asset', 'asset', deleteTarget.id, {
+      assetTag: deleteTarget.assetTag,
+      assetName: deleteTarget.name,
+      assetType: deleteTarget.type,
+      reason: deleteReason.trim(),
+    });
+
     setDeleteTarget(null);
     setDeleteConfirmation('');
+    setDeleteReason('');
   };
 
   const handleTransferAsset = async (record: AssetTransferRecord) => {
@@ -381,48 +400,36 @@ export default function AssetsPage() {
         />
       )}
 
-      <Dialog
+      <DeleteConfirmDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
           if (!open) {
             setDeleteTarget(null);
             setDeleteConfirmation('');
+            setDeleteReason('');
+            setDeleteError('');
           }
         }}
-      >
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Delete Asset?</DialogTitle>
-            <DialogDescription>
-              This will permanently remove <strong>{deleteTarget?.name}</strong> from the inventory.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Type the exact Asset Tag <strong>{deleteTarget?.assetTag}</strong> to confirm deletion.
-            </p>
-            <Input
-              value={deleteConfirmation}
-              onChange={(e) => setDeleteConfirmation(e.target.value)}
-              placeholder={deleteTarget?.assetTag || 'Enter asset tag'}
-            />
-          </div>
-
-          <DialogFooter className="gap-2 sm:justify-end">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDeleteAsset}
-              disabled={deleteConfirmation.trim().toLowerCase() !== deleteTarget?.assetTag.trim().toLowerCase()}
-            >
-              Delete Asset
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Delete Asset?"
+        description={
+          <>
+            This will permanently remove <strong>{deleteTarget?.name}</strong> from the inventory.
+          </>
+        }
+        confirmationLabel="Asset Tag"
+        confirmationValue={deleteConfirmation}
+        onConfirmationValueChange={setDeleteConfirmation}
+        reason={deleteReason}
+        onReasonChange={setDeleteReason}
+        onConfirm={confirmDeleteAsset}
+        error={deleteError}
+        confirmLabel="Delete Asset"
+        confirmDisabled={
+          !deleteTarget ||
+          deleteConfirmation.trim().toLowerCase() !== deleteTarget.assetTag.trim().toLowerCase() ||
+          !deleteReason.trim()
+        }
+      />
     </DashboardLayout>
   );
 }

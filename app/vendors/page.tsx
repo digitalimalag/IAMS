@@ -15,14 +15,23 @@ import { Plus, Search, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { mockVendors } from '@/lib/mock-data';
 import type { Vendor } from '@/lib/mock-data';
+import type { Session } from '@/lib/auth';
+import { readStoredSession } from '@/lib/licenses';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
+import { writeAuditLog } from '@/lib/audit';
 
 const VENDOR_STORAGE_KEY = 'it_vendors';
 
 function VendorsContent() {
+  const [session, setSession] = useState<Session | null>(null);
   const [vendors, setVendors] = useState(mockVendors);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Vendor | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     contactPerson: '',
@@ -41,6 +50,7 @@ function VendorsContent() {
   });
 
   useEffect(() => {
+    setSession(readStoredSession());
     const storedVendors = localStorage.getItem(VENDOR_STORAGE_KEY);
     if (!storedVendors) return;
     try {
@@ -122,7 +132,36 @@ function VendorsContent() {
   };
 
   const handleDelete = (id: string) => {
-    persistVendors(vendors.filter(v => v.id !== id));
+    const vendor = vendors.find((item) => item.id === id) || null;
+    setDeleteTarget(vendor);
+    setDeleteConfirmation('');
+    setDeleteReason('');
+    setDeleteError('');
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    if (deleteConfirmation.trim().toLowerCase() !== deleteTarget.name.trim().toLowerCase()) {
+      setDeleteError('Please type the exact Vendor Name to confirm deletion.');
+      return;
+    }
+    if (!deleteReason.trim()) {
+      setDeleteError('Please enter a delete reason before approving.');
+      return;
+    }
+
+    persistVendors(vendors.filter(v => v.id !== deleteTarget.id));
+    await writeAuditLog(session, 'delete_vendor', 'vendor', deleteTarget.id, {
+      vendorName: deleteTarget.name,
+      contactPerson: deleteTarget.contactPerson,
+      email: deleteTarget.email,
+      reason: deleteReason.trim(),
+    });
+
+    setDeleteTarget(null);
+    setDeleteConfirmation('');
+    setDeleteReason('');
+    setDeleteError('');
   };
 
   const handleToggleActive = (id: string) => {
@@ -372,6 +411,37 @@ function VendorsContent() {
 </div>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteConfirmation('');
+            setDeleteReason('');
+            setDeleteError('');
+          }
+        }}
+        title="Delete Vendor?"
+        description={
+          <>
+            This will permanently remove <strong>{deleteTarget?.name}</strong> from the vendor list.
+          </>
+        }
+        confirmationLabel="Vendor Name"
+        confirmationValue={deleteConfirmation}
+        onConfirmationValueChange={setDeleteConfirmation}
+        reason={deleteReason}
+        onReasonChange={setDeleteReason}
+        onConfirm={confirmDelete}
+        error={deleteError}
+        confirmLabel="Delete Vendor"
+        confirmDisabled={
+          !deleteTarget ||
+          deleteConfirmation.trim().toLowerCase() !== deleteTarget.name.trim().toLowerCase() ||
+          !deleteReason.trim()
+        }
+      />
     </DashboardLayout >
   );
 }
