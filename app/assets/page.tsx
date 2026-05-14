@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -41,6 +42,8 @@ export default function AssetsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [transferAsset, setTransferAsset] = useState<Asset | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [assets, setAssets] = useState(mockAssets);
   const [transferHistory, setTransferHistory] = useState<AssetTransferRecord[]>([]);
   const plan = normalizePlan(session?.plan);
@@ -123,18 +126,36 @@ export default function AssetsPage() {
     return assets;
   }, [assets, session]);
 
-  const handleDeleteAsset = async (id: string) => {
+  const handleDeleteAsset = (id: string) => {
+    const asset = assets.find((item) => item.id === id) || null;
+    if (!asset) return;
+    setDeleteTarget(asset);
+    setDeleteConfirmation('');
+  };
+
+  const confirmDeleteAsset = async () => {
+    if (!deleteTarget) return;
+    if (deleteConfirmation.trim().toLowerCase() !== deleteTarget.assetTag.trim().toLowerCase()) {
+      return;
+    }
+
+    setTransferAsset((current) => (current?.id === deleteTarget.id ? null : current));
+
+    const nextAssets = assets.filter((asset) => asset.id !== deleteTarget.id);
+    persistAssets(nextAssets);
+
     if (canUseAssetSupabase(session)) {
       try {
         const supabase = getAssetSupabaseClient();
         const orgId = getAssetOrganizationId(session);
-        const { error } = await supabase.from('assets').delete().eq('id', id).eq('organization_id', orgId);
-        if (error) return;
+        await supabase.from('assets').delete().eq('id', deleteTarget.id).eq('organization_id', orgId);
       } catch {
-        // Fallback below
+        // Keep delete flow quiet if Supabase is unavailable.
       }
     }
-    persistAssets(assets.filter(a => a.id !== id));
+
+    setDeleteTarget(null);
+    setDeleteConfirmation('');
   };
 
   const handleTransferAsset = async (record: AssetTransferRecord) => {
@@ -359,6 +380,49 @@ export default function AssetsPage() {
           onSubmit={handleTransferAsset}
         />
       )}
+
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteConfirmation('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Delete Asset?</DialogTitle>
+            <DialogDescription>
+              This will permanently remove <strong>{deleteTarget?.name}</strong> from the inventory.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Type the exact Asset Tag <strong>{deleteTarget?.assetTag}</strong> to confirm deletion.
+            </p>
+            <Input
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              placeholder={deleteTarget?.assetTag || 'Enter asset tag'}
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteAsset}
+              disabled={deleteConfirmation.trim().toLowerCase() !== deleteTarget?.assetTag.trim().toLowerCase()}
+            >
+              Delete Asset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
