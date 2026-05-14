@@ -1,5 +1,6 @@
 import { Asset, NetworkDevice, Issue, LicenseRecord } from './mock-data';
 import { formatDateYMD } from './date';
+import { getIssueDisplayId } from './issues';
 
 function formatStorageAddons(storageAddons?: { capacity: string; mediaType: 'HDD' | 'SSD'; quantity: number }[]) {
   if (!storageAddons || storageAddons.length === 0) return '-';
@@ -133,7 +134,7 @@ export function exportNetworkDevicesToCSV(devices: NetworkDevice[]) {
 
 export function exportIssuesToCSV(issues: Issue[]) {
   const csvIssues = issues.map(issue => ({
-    'Issue ID': issue.id,
+    'Issue ID': getIssueDisplayId(issue),
     'Title': issue.title,
     'Description': issue.description,
     'Status': issue.status,
@@ -213,7 +214,7 @@ export function generateAssetIssueFormPDF(issue: Issue, asset: Asset | null) {
   drawLine();
 
   ctx.font = '12px Arial';
-  drawText(`Issue ID: ${issue.id}`, 40, 12);
+  drawText(`Issue ID: ${getIssueDisplayId(issue)}`, 40, 12);
   drawText(`Date: ${formatDateYMD(new Date())}`, 40, 12);
   drawText(`Title: ${issue.title}`, 40, 12);
   drawText(`Description: ${issue.description}`, 40, 12);
@@ -268,6 +269,6 @@ export function generateAssetIssueFormPDF(issue: Issue, asset: Asset | null) {
   const image = canvas.toDataURL('image/png');
   const link = document.createElement('a');
   link.href = image;
-  link.download = `asset-issue-form-${issue.id}-${formatDateYMD(new Date())}.png`;
+  link.download = `asset-issue-form-${getIssueDisplayId(issue)}-${formatDateYMD(new Date())}.png`;
   link.click();
 }

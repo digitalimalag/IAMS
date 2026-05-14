@@ -175,6 +175,7 @@ export interface LicenseRecord {
 
 export interface Issue {
   id: string;
+  ticketNumber?: string;
   title: string;
   description: string;
   status: 'Open' | 'In Progress' | 'Resolved';

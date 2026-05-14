@@ -16,7 +16,7 @@ import type { Session } from '@/lib/auth';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { writeAuditLog } from '@/lib/audit';
 import { canUseAssetSupabase, getAssetOrganizationId, getAssetSupabaseClient, assetDbRowToRecord } from '@/lib/assets';
-import { canUseIssueSupabase, getIssueOrganizationId, getSupabaseIssuesClient, issueRowToRecord, ISSUE_STORAGE_KEY } from '@/lib/issues';
+import { canUseIssueSupabase, getIssueOrganizationId, getSupabaseIssuesClient, issueRowToRecord, ISSUE_STORAGE_KEY, getIssueDisplayId } from '@/lib/issues';
 
 export default function IssuesPage() {
   const router = useRouter();
@@ -143,7 +143,8 @@ export default function IssuesPage() {
 
   const confirmDeleteIssue = async () => {
     if (!deleteTarget) return;
-    if (deleteConfirmation.trim().toLowerCase() !== deleteTarget.id.trim().toLowerCase()) {
+    const deleteToken = getIssueDisplayId(deleteTarget);
+    if (deleteConfirmation.trim().toLowerCase() !== deleteToken.trim().toLowerCase()) {
       setDeleteError('Please type the exact Ticket ID to confirm deletion.');
       return;
     }
@@ -155,6 +156,7 @@ export default function IssuesPage() {
     const nextIssues = issues.filter((issue) => issue.id !== deleteTarget.id);
     persistIssues(nextIssues);
     await writeAuditLog(session, 'delete_issue', 'issue', deleteTarget.id, {
+      ticketNumber: deleteToken,
       title: deleteTarget.title,
       assignedTo: deleteTarget.assignedTo,
       designation: deleteTarget.designation || '',
@@ -307,7 +309,7 @@ export default function IssuesPage() {
           confirmLabel="Delete Ticket"
           confirmDisabled={
             !deleteTarget ||
-            deleteConfirmation.trim().toLowerCase() !== deleteTarget.id.trim().toLowerCase() ||
+            deleteConfirmation.trim().toLowerCase() !== getIssueDisplayId(deleteTarget).trim().toLowerCase() ||
             !deleteReason.trim()
           }
         />

@@ -9,7 +9,7 @@ import { mockAssets } from '@/lib/mock-data';
 import type { Issue } from '@/lib/mock-data';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { canUseAssetSupabase, getAssetOrganizationId, getAssetSupabaseClient, assetDbRowToRecord } from '@/lib/assets';
-import { canUseIssueSupabase, getIssueOrganizationId, issueInputToPayload, ISSUE_STORAGE_KEY } from '@/lib/issues';
+import { canUseIssueSupabase, getIssueOrganizationId, generateIssueTicketNumber, issueInputToPayload, issueRowToRecord, getSupabaseIssuesClient, ISSUE_STORAGE_KEY } from '@/lib/issues';
 import { readStoredSession } from '@/lib/licenses';
 import { writeAuditLog } from '@/lib/audit';
 
@@ -18,6 +18,7 @@ export default function NewIssuePage() {
   const [session, setSession] = useState<any>(null);
   const [error, setError] = useState('');
   const [assets, setAssets] = useState(mockAssets);
+  const [existingIssues, setExistingIssues] = useState<Issue[]>([]);
 
   useEffect(() => {
     const sessionStr = localStorage.getItem('session');
@@ -59,7 +60,38 @@ export default function NewIssuePage() {
       }
     };
 
+    const loadIssues = async () => {
+      const currentSession = sessionStr ? JSON.parse(sessionStr) : readStoredSession();
+      if (canUseIssueSupabase(currentSession)) {
+        try {
+          const supabase = getSupabaseIssuesClient();
+          const orgId = getIssueOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('issues')
+            .select('*')
+            .eq('organization_id', orgId)
+            .order('created_at', { ascending: false });
+          if (!error && Array.isArray(data)) {
+            setExistingIssues(data.map((row) => issueRowToRecord(row as any)));
+            return;
+          }
+        } catch {
+          // fallback below
+        }
+      }
+
+      const storedIssues = localStorage.getItem(ISSUE_STORAGE_KEY);
+      if (storedIssues) {
+        try {
+          setExistingIssues(JSON.parse(storedIssues));
+        } catch {
+          setExistingIssues([]);
+        }
+      }
+    };
+
     void loadAssets();
+    void loadIssues();
   }, []);
 
   const handleSubmit = (values: IssueFormValues) => {
@@ -70,10 +102,11 @@ export default function NewIssuePage() {
     }
 
     const currentSession = session || readStoredSession();
+    const ticketNumber = generateIssueTicketNumber(existingIssues);
 
     if (canUseIssueSupabase(currentSession)) {
       const supabase = createSupabaseBrowserClient();
-      const payload = issueInputToPayload(values, currentSession, currentSession?.userId || null);
+      const payload = issueInputToPayload(values, currentSession, currentSession?.userId || null, ticketNumber);
       void supabase.from('issues').insert(payload).then(async ({ error, data }) => {
         if (error) {
           setError(error.message);
@@ -81,6 +114,7 @@ export default function NewIssuePage() {
         }
 
         await writeAuditLog(currentSession, 'create_issue', 'issue', null, {
+          ticketNumber,
           title: values.title,
           assignedTo: values.assignedTo,
           designation: values.designation,
@@ -93,9 +127,10 @@ export default function NewIssuePage() {
     }
 
     const stored = localStorage.getItem(ISSUE_STORAGE_KEY);
-    const existingIssues: Issue[] = stored ? JSON.parse(stored) : [];
+    const storedIssues: Issue[] = stored ? JSON.parse(stored) : [];
     const newIssue: Issue = {
-      id: `ISS-${Date.now()}`,
+      id: ticketNumber,
+      ticketNumber,
       title: values.title,
       description: values.description,
       status: values.status,
@@ -109,8 +144,9 @@ export default function NewIssuePage() {
       department: values.department,
     };
 
-    localStorage.setItem(ISSUE_STORAGE_KEY, JSON.stringify([...existingIssues, newIssue]));
+    localStorage.setItem(ISSUE_STORAGE_KEY, JSON.stringify([...storedIssues, newIssue]));
     void writeAuditLog(currentSession, 'create_issue', 'issue', newIssue.id, {
+      ticketNumber: newIssue.ticketNumber || newIssue.id,
       title: newIssue.title,
       assignedTo: newIssue.assignedTo,
       designation: newIssue.designation || '',

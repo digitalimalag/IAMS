@@ -106,6 +106,7 @@ export function TopNav({ onMenuToggle }: TopNavProps) {
     it: 'IT',
     employee: 'Employee',
   }[session?.role || 'employee'];
+  const canOpenSettings = session?.role === 'master_admin' || session?.role === 'admin';
 
   return (
     <div className="bg-card border-b border-border sticky top-0 z-40">
@@ -161,10 +162,12 @@ export function TopNav({ onMenuToggle }: TopNavProps) {
                   <User className="w-4 h-4" />
                   <span>Profile</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={openSettings}>
-                  <Settings className="w-4 h-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
+                {canOpenSettings && (
+                  <DropdownMenuItem className="gap-2 cursor-pointer" onClick={openSettings}>
+                    <Settings className="w-4 h-4" />
+                    <span>Settings</span>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="gap-2 cursor-pointer text-destructive focus:text-destructive"

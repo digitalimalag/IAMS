@@ -7,6 +7,7 @@ export const ISSUE_STORAGE_KEY = 'issues';
 export type IssueDbRow = {
   id: string;
   organization_id: string;
+  ticket_number?: string | null;
   title: string;
   description: string;
   status: Issue['status'];
@@ -35,6 +36,24 @@ export type IssueInputLike = {
   department: string;
 };
 
+export function getIssueDisplayId(issue: Pick<Issue, 'id' | 'ticketNumber'>) {
+  return issue.ticketNumber?.trim() || issue.id;
+}
+
+export function generateIssueTicketNumber(existingIssues: Array<Pick<Issue, 'id' | 'ticketNumber'>>) {
+  const year = new Date().getFullYear();
+  const prefix = `ITI-${year}-`;
+  const existingSequence = existingIssues.reduce((max, issue) => {
+    const candidate = (issue.ticketNumber || issue.id || '').trim();
+    if (!candidate.startsWith(prefix)) return max;
+    const suffix = candidate.slice(prefix.length);
+    const sequence = Number.parseInt(suffix, 10);
+    return Number.isFinite(sequence) && sequence > max ? sequence : max;
+  }, 0);
+
+  return `${prefix}${String(existingSequence + 1).padStart(3, '0')}`;
+}
+
 export function canUseIssueSupabase(session: Session | null) {
   return isSupabaseConfigured() && Boolean(session?.organizationId?.trim());
 }
@@ -46,6 +65,7 @@ export function getIssueOrganizationId(session: Session | null) {
 export function issueRowToRecord(row: IssueDbRow): Issue {
   return {
     id: row.id,
+    ticketNumber: row.ticket_number || '',
     title: row.title,
     description: row.description,
     status: row.status,
@@ -60,7 +80,12 @@ export function issueRowToRecord(row: IssueDbRow): Issue {
   };
 }
 
-export function issueInputToPayload(values: IssueInputLike, session: Session | null, currentUserId?: string | null) {
+export function issueInputToPayload(
+  values: IssueInputLike,
+  session: Session | null,
+  currentUserId?: string | null,
+  ticketNumber?: string | null
+) {
   return {
     organization_id: getIssueOrganizationId(session),
     title: values.title.trim(),
@@ -73,7 +98,8 @@ export function issueInputToPayload(values: IssueInputLike, session: Session | n
     created_by_user_id: currentUserId || null,
     due_date: values.dueDate || null,
     department: values.department.trim() || null,
-  };
+    ...(ticketNumber ? { ticket_number: ticketNumber.trim() } : {}),
+  } as Record<string, unknown>;
 }
 
 export function getSupabaseIssuesClient() {

@@ -11,6 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Issue } from '@/lib/mock-data';
+import { getIssueDisplayId } from '@/lib/issues';
 import { formatDateYMD } from '@/lib/date';
 import { MoreHorizontal, Edit, Trash2, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import {
@@ -97,7 +98,7 @@ export function IssueTable({ issues, onEdit, onDelete }: IssueTableProps) {
               key={issue.id}
               className="border-b hover:bg-muted/40 transition-colors"
             >
-              <TableCell className="p-3 font-mono font-medium text-sm">{issue.id}</TableCell>
+              <TableCell className="p-3 font-mono font-medium text-sm">{getIssueDisplayId(issue)}</TableCell>
               <TableCell className="p-3 font-medium max-w-xs truncate">{issue.title}</TableCell>
               <TableCell>
                 <Badge variant="outline" className={`gap-2 ${getStatusColor(issue.status)}`}>
