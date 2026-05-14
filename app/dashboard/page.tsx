@@ -1,45 +1,55 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { SessionCheck } from '@/components/session-check';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, AlertCircle, Zap, Network } from 'lucide-react';
-import { getDashboardStats, getAssetDistribution, getRecentIssues, mockIssues } from '@/lib/mock-data';
 import { AssetDistributionChart } from '@/components/charts/asset-distribution-chart';
 import { IssueStatusChart } from '@/components/charts/issue-status-chart';
 import { RecentIssuesTable } from '@/components/tables/recent-issues-table';
+import type { OverviewData } from '@/lib/overview';
+import { loadOverviewData } from '@/lib/overview';
+import { readStoredSession } from '@/lib/licenses';
+import type { Session } from '@/lib/auth';
 
 function DashboardContent() {
-  const stats = getDashboardStats();
-  const assetDistribution = getAssetDistribution();
-  const recentIssues = getRecentIssues();
-  
-  const issueStats = {
-    open: mockIssues.filter(i => i.status === 'Open').length,
-    inProgress: mockIssues.filter(i => i.status === 'In Progress').length,
-    resolved: mockIssues.filter(i => i.status === 'Resolved').length,
-  };
+  const [session, setSession] = useState<Session | null>(null);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+
+  useEffect(() => {
+    const currentSession = readStoredSession();
+    setSession(currentSession);
+    void loadOverviewData(currentSession).then(setOverview);
+  }, []);
+
+  const stats = overview?.stats;
+  const assetDistribution = overview?.assetDistribution || [];
+  const recentIssues = overview?.recentIssues || [];
+  const issueStats = overview?.issueStats || { open: 0, inProgress: 0, resolved: 0 };
 
   const kpiCards = [
     {
       title: 'Total Assets',
-      value: stats.totalAssets,
-      description: `${stats.activeAssets} active`,
+      value: stats?.totalAssets ?? 0,
+      description: `${stats?.activeAssets ?? 0} active`,
       icon: Package,
     },
     {
       title: 'Network Devices',
-      value: stats.totalNetworkDevices,
-      description: `${stats.onlineDevices} online`,
+      value: stats?.totalNetworkDevices ?? 0,
+      description: `${stats?.onlineDevices ?? 0} online`,
       icon: Network,
     },
     {
       title: 'Open Issues',
-      value: stats.openIssues,
-      description: `${stats.inProgressIssues} in progress`,
+      value: stats?.openIssues ?? 0,
+      description: `${stats?.inProgressIssues ?? 0} in progress`,
       icon: AlertCircle,
     },
     {
       title: 'Companies',
-      value: stats.totalCompanies,
+      value: stats?.totalCompanies ?? 0,
       description: 'Managed accounts',
       icon: Zap,
     },

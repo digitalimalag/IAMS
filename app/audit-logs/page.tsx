@@ -25,6 +25,7 @@ function AuditLogsContent() {
   const [session, setSession] = useState<Session | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
+  const [entityFilter, setEntityFilter] = useState<string>('all');
   const [logs, setLogs] = useState<AuditLogRow[]>([]);
 
   useEffect(() => {
@@ -64,10 +65,12 @@ function AuditLogsContent() {
     const searchBlob = `${log.action} ${log.entity_type} ${log.metadata?.name || ''} ${log.metadata?.email || ''} ${log.metadata?.reason || ''}`.toLowerCase();
     const matchesSearch = searchBlob.includes(searchTerm.toLowerCase());
     const matchesAction = actionFilter === 'all' || log.action === actionFilter;
-    return matchesSearch && matchesAction;
-  }), [actionFilter, logs, searchTerm]);
+    const matchesEntity = entityFilter === 'all' || log.entity_type === entityFilter;
+    return matchesSearch && matchesAction && matchesEntity;
+  }), [actionFilter, entityFilter, logs, searchTerm]);
 
   const uniqueActions = Array.from(new Set(logs.map((l) => l.action)));
+  const uniqueEntities = Array.from(new Set(logs.map((l) => l.entity_type)));
 
   const formatTime = (timestamp: string) =>
     new Date(timestamp).toLocaleString('en-US', {
@@ -109,6 +112,17 @@ function AuditLogsContent() {
                 <SelectItem value="all">All Actions</SelectItem>
                 {uniqueActions.map((action) => (
                   <SelectItem key={action} value={action}>{action}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={entityFilter} onValueChange={setEntityFilter}>
+              <SelectTrigger className="bg-input border-border w-fit">
+                <SelectValue placeholder="Filter by resource" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Resources</SelectItem>
+                {uniqueEntities.map((entity) => (
+                  <SelectItem key={entity} value={entity}>{entity}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

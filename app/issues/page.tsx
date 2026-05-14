@@ -15,8 +15,8 @@ import { generateAssetIssueFormPDF } from '@/lib/export-utils';
 import type { Session } from '@/lib/auth';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { writeAuditLog } from '@/lib/audit';
-
-const ISSUE_STORAGE_KEY = 'issues';
+import { canUseAssetSupabase, getAssetOrganizationId, getAssetSupabaseClient, assetDbRowToRecord } from '@/lib/assets';
+import { canUseIssueSupabase, getIssueOrganizationId, getSupabaseIssuesClient, issueRowToRecord, ISSUE_STORAGE_KEY } from '@/lib/issues';
 
 export default function IssuesPage() {
   const router = useRouter();
@@ -26,6 +26,7 @@ export default function IssuesPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [issues, setIssues] = useState(mockIssues);
+  const [assets, setAssets] = useState(mockAssets);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
@@ -41,14 +42,64 @@ export default function IssuesPage() {
       }
     }
 
-    const storedIssues = localStorage.getItem(ISSUE_STORAGE_KEY);
-    if (storedIssues) {
-      try {
-        setIssues(JSON.parse(storedIssues));
-      } catch {
-        setIssues(mockIssues);
+    const loadIssues = async () => {
+      const currentSession = sessionStr ? JSON.parse(sessionStr) : null;
+      if (canUseAssetSupabase(currentSession)) {
+        try {
+          const supabase = getAssetSupabaseClient();
+          const orgId = getAssetOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('assets')
+            .select('*')
+            .eq('organization_id', orgId)
+            .order('created_at', { ascending: false });
+          if (!error && Array.isArray(data)) {
+            setAssets(data.map((row) => assetDbRowToRecord(row as any)));
+          }
+        } catch {
+          // fallback below
+        }
+      } else {
+        const storedAssets = localStorage.getItem('it_assets');
+        if (storedAssets) {
+          try {
+            setAssets(JSON.parse(storedAssets));
+          } catch {
+            setAssets(mockAssets);
+          }
+        }
       }
-    }
+
+      if (canUseIssueSupabase(currentSession)) {
+        try {
+          const supabase = getSupabaseIssuesClient();
+          const orgId = getIssueOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('issues')
+            .select('*')
+            .eq('organization_id', orgId)
+            .order('created_at', { ascending: false });
+
+          if (!error && Array.isArray(data)) {
+            setIssues(data.map((row) => issueRowToRecord(row as any)));
+            return;
+          }
+        } catch {
+          // fallback below
+        }
+      }
+
+      const storedIssues = localStorage.getItem(ISSUE_STORAGE_KEY);
+      if (storedIssues) {
+        try {
+          setIssues(JSON.parse(storedIssues));
+        } catch {
+          setIssues(mockIssues);
+        }
+      }
+    };
+
+    void loadIssues();
   }, []);
 
   const persistIssues = (nextIssues: typeof issues) => {
@@ -58,9 +109,9 @@ export default function IssuesPage() {
 
   const visibleAssets = useMemo(() => {
     if (!session) return mockAssets;
-    if (session.role === 'employee') return mockAssets.filter((asset) => asset.assignedToUserId === session.userId);
-    return mockAssets;
-  }, [session]);
+    if (session.role === 'employee') return assets.filter((asset) => asset.assignedToUserId === session.userId);
+    return assets;
+  }, [assets, session]);
 
   const visibleAssetIds = useMemo(() => new Set(visibleAssets.map((asset) => asset.id)), [visibleAssets]);
 
@@ -101,7 +152,8 @@ export default function IssuesPage() {
       return;
     }
 
-    persistIssues(issues.filter((issue) => issue.id !== deleteTarget.id));
+    const nextIssues = issues.filter((issue) => issue.id !== deleteTarget.id);
+    persistIssues(nextIssues);
     await writeAuditLog(session, 'delete_issue', 'issue', deleteTarget.id, {
       title: deleteTarget.title,
       assignedTo: deleteTarget.assignedTo,
@@ -109,6 +161,16 @@ export default function IssuesPage() {
       department: deleteTarget.department,
       reason: deleteReason.trim(),
     });
+
+    if (canUseIssueSupabase(session)) {
+      try {
+        const supabase = getSupabaseIssuesClient();
+        const orgId = getIssueOrganizationId(session);
+        await supabase.from('issues').delete().eq('id', deleteTarget.id).eq('organization_id', orgId);
+      } catch {
+        // local fallback already persisted
+      }
+    }
 
     setDeleteTarget(null);
     setDeleteConfirmation('');
@@ -134,7 +196,7 @@ export default function IssuesPage() {
                 onGeneratePDF={() => {
                   const firstIssue = filteredIssues[0];
                   if (firstIssue) {
-                    const asset = mockAssets.find((item) => item.id === firstIssue.assetId);
+                    const asset = assets.find((item) => item.id === firstIssue.assetId);
                     generateAssetIssueFormPDF(firstIssue, asset || null);
                   }
                 }}

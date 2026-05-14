@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { SessionCheck } from '@/components/session-check';
 import { IssueForm, type IssueFormValues } from '@/components/forms/issue-form';
-import { mockAssets, mockIssues } from '@/lib/mock-data';
+import { mockAssets } from '@/lib/mock-data';
 import type { Issue } from '@/lib/mock-data';
-
-const ISSUE_STORAGE_KEY = 'issues';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { canUseAssetSupabase, getAssetOrganizationId, getAssetSupabaseClient, assetDbRowToRecord } from '@/lib/assets';
+import { canUseIssueSupabase, getIssueOrganizationId, issueInputToPayload, ISSUE_STORAGE_KEY } from '@/lib/issues';
+import { readStoredSession } from '@/lib/licenses';
+import { writeAuditLog } from '@/lib/audit';
 
 export default function NewIssuePage() {
   const router = useRouter();
@@ -26,14 +29,37 @@ export default function NewIssuePage() {
       }
     }
 
-    const storedAssets = localStorage.getItem('it_assets');
-    if (storedAssets) {
-      try {
-        setAssets(JSON.parse(storedAssets));
-      } catch {
-        setAssets(mockAssets);
+    const loadAssets = async () => {
+      const currentSession = sessionStr ? JSON.parse(sessionStr) : readStoredSession();
+      if (canUseAssetSupabase(currentSession)) {
+        try {
+          const supabase = getAssetSupabaseClient();
+          const orgId = getAssetOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('assets')
+            .select('*')
+            .eq('organization_id', orgId)
+            .order('created_at', { ascending: false });
+          if (!error && Array.isArray(data)) {
+            setAssets(data.map((row) => assetDbRowToRecord(row)));
+            return;
+          }
+        } catch {
+          // fallback below
+        }
       }
-    }
+
+      const storedAssets = localStorage.getItem('it_assets');
+      if (storedAssets) {
+        try {
+          setAssets(JSON.parse(storedAssets));
+        } catch {
+          setAssets(mockAssets);
+        }
+      }
+    };
+
+    void loadAssets();
   }, []);
 
   const handleSubmit = (values: IssueFormValues) => {
@@ -43,9 +69,31 @@ export default function NewIssuePage() {
       return;
     }
 
-    const stored = localStorage.getItem(ISSUE_STORAGE_KEY);
-    const existingIssues: Issue[] = stored ? JSON.parse(stored) : mockIssues;
+    const currentSession = session || readStoredSession();
 
+    if (canUseIssueSupabase(currentSession)) {
+      const supabase = createSupabaseBrowserClient();
+      const payload = issueInputToPayload(values, currentSession, currentSession?.userId || null);
+      void supabase.from('issues').insert(payload).then(async ({ error, data }) => {
+        if (error) {
+          setError(error.message);
+          return;
+        }
+
+        await writeAuditLog(currentSession, 'create_issue', 'issue', null, {
+          title: values.title,
+          assignedTo: values.assignedTo,
+          designation: values.designation,
+          department: values.department,
+        });
+
+        router.push('/issues');
+      });
+      return;
+    }
+
+    const stored = localStorage.getItem(ISSUE_STORAGE_KEY);
+    const existingIssues: Issue[] = stored ? JSON.parse(stored) : [];
     const newIssue: Issue = {
       id: `ISS-${Date.now()}`,
       title: values.title,
@@ -55,13 +103,19 @@ export default function NewIssuePage() {
       assetId: values.assetId === 'none' ? '' : values.assetId,
       assignedTo: values.assignedTo,
       designation: values.designation,
-      createdByUserId: session?.userId,
+      createdByUserId: currentSession?.userId,
       createdDate: values.createdDate,
       dueDate: values.dueDate,
       department: values.department,
     };
 
     localStorage.setItem(ISSUE_STORAGE_KEY, JSON.stringify([...existingIssues, newIssue]));
+    void writeAuditLog(currentSession, 'create_issue', 'issue', newIssue.id, {
+      title: newIssue.title,
+      assignedTo: newIssue.assignedTo,
+      designation: newIssue.designation || '',
+      department: newIssue.department,
+    });
     router.push('/issues');
   };
 

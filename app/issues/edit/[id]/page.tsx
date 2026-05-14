@@ -7,8 +7,11 @@ import { SessionCheck } from '@/components/session-check';
 import { IssueForm, type IssueFormValues } from '@/components/forms/issue-form';
 import { mockAssets, mockIssues } from '@/lib/mock-data';
 import type { Issue } from '@/lib/mock-data';
-
-const ISSUE_STORAGE_KEY = 'issues';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { canUseAssetSupabase, getAssetOrganizationId, getAssetSupabaseClient, assetDbRowToRecord } from '@/lib/assets';
+import { canUseIssueSupabase, getIssueOrganizationId, issueInputToPayload, issueRowToRecord, ISSUE_STORAGE_KEY } from '@/lib/issues';
+import { readStoredSession } from '@/lib/licenses';
+import { writeAuditLog } from '@/lib/audit';
 
 export default function EditIssuePage() {
   const router = useRouter();
@@ -29,18 +32,60 @@ export default function EditIssuePage() {
       }
     }
 
-    const storedAssets = localStorage.getItem('it_assets');
-    if (storedAssets) {
-      try {
-        setAssets(JSON.parse(storedAssets));
-      } catch {
-        setAssets(mockAssets);
-      }
-    }
+    const loadData = async () => {
+      const currentSession = sessionStr ? JSON.parse(sessionStr) : readStoredSession();
 
-    const storedIssues = localStorage.getItem(ISSUE_STORAGE_KEY);
-    const existingIssues: Issue[] = storedIssues ? JSON.parse(storedIssues) : mockIssues;
-    setIssue(existingIssues.find((item) => item.id === issueId) || null);
+      if (canUseAssetSupabase(currentSession)) {
+        try {
+          const supabase = getAssetSupabaseClient();
+          const orgId = getAssetOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('assets')
+            .select('*')
+            .eq('organization_id', orgId)
+            .order('created_at', { ascending: false });
+          if (!error && Array.isArray(data)) {
+            setAssets(data.map((row) => assetDbRowToRecord(row)));
+          }
+        } catch {
+          // fallback below
+        }
+      } else {
+        const storedAssets = localStorage.getItem('it_assets');
+        if (storedAssets) {
+          try {
+            setAssets(JSON.parse(storedAssets));
+          } catch {
+            setAssets(mockAssets);
+          }
+        }
+      }
+
+      if (canUseIssueSupabase(currentSession)) {
+        try {
+          const supabase = createSupabaseBrowserClient();
+          const orgId = getIssueOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('issues')
+            .select('*')
+            .eq('organization_id', orgId)
+            .eq('id', issueId)
+            .single();
+          if (!error && data) {
+            setIssue(issueRowToRecord(data as any));
+            return;
+          }
+        } catch {
+          // fallback below
+        }
+      }
+
+      const storedIssues = localStorage.getItem(ISSUE_STORAGE_KEY);
+      const existingIssues: Issue[] = storedIssues ? JSON.parse(storedIssues) : mockIssues;
+      setIssue(existingIssues.find((item) => item.id === issueId) || null);
+    };
+
+    void loadData();
   }, [issueId]);
 
   const initialValues = useMemo<Partial<IssueFormValues> | undefined>(() => {
@@ -67,6 +112,32 @@ export default function EditIssuePage() {
       return;
     }
 
+    const currentSession = session || readStoredSession();
+
+    if (canUseIssueSupabase(currentSession)) {
+      const supabase = createSupabaseBrowserClient();
+      const payload = issueInputToPayload(values, currentSession, issue.createdByUserId || currentSession?.userId || null);
+      void supabase
+        .from('issues')
+        .update(payload)
+        .eq('id', issue.id)
+        .eq('organization_id', getIssueOrganizationId(currentSession))
+        .then(async ({ error }) => {
+          if (error) {
+            setError(error.message);
+            return;
+          }
+          await writeAuditLog(currentSession, 'update_issue', 'issue', issue.id, {
+            title: values.title,
+            assignedTo: values.assignedTo,
+            designation: values.designation,
+            department: values.department,
+          });
+          router.push('/issues');
+        });
+      return;
+    }
+
     const stored = localStorage.getItem(ISSUE_STORAGE_KEY);
     const existingIssues: Issue[] = stored ? JSON.parse(stored) : mockIssues;
     const updatedIssue: Issue = {
@@ -86,6 +157,12 @@ export default function EditIssuePage() {
       ISSUE_STORAGE_KEY,
       JSON.stringify(existingIssues.map((item) => (item.id === issue.id ? updatedIssue : item)))
     );
+    void writeAuditLog(currentSession, 'update_issue', 'issue', issue.id, {
+      title: values.title,
+      assignedTo: values.assignedTo,
+      designation: values.designation,
+      department: values.department,
+    });
     router.push('/issues');
   };
 
