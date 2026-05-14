@@ -153,9 +153,10 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
 
   useEffect(() => {
     const merged = { ...defaultValues, ...initialValues };
+    const normalizedType = normalizeAssetType((initialValues?.type || (initialValues as Record<string, unknown> | undefined)?.assetType || merged.type) as string);
     setFormData({
       ...merged,
-      type: normalizeAssetType((initialValues?.type || (initialValues as Record<string, unknown> | undefined)?.assetType || merged.type) as string) as string,
+      type: normalizedType && ASSET_TYPES.includes(normalizedType as string) ? (normalizedType as string) : (normalizedType ? '__manual__' : ''),
       storageAddons: Array.isArray(initialValues?.storageAddons) && initialValues.storageAddons.length > 0
         ? initialValues.storageAddons
         : initialValues?.storage
@@ -167,7 +168,11 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
           ? parseRamSummary(`${initialValues.ram}${initialValues.ramType ? ` ${initialValues.ramType}` : ''}${initialValues.ramMhz ? ` ${initialValues.ramMhz} MHz` : ''}`)
           : [{ capacity: '', ramType: '', ramMhz: '' }],
     });
-    setCustomType('');
+    if (normalizedType && !ASSET_TYPES.includes(normalizedType as string)) {
+      setCustomType(normalizedType as string);
+    } else {
+      setCustomType('');
+    }
   }, [initialValues]);
 
   useEffect(() => {
@@ -202,6 +207,13 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
     }
     return vendorOptions;
   }, [formData.vendor, vendorOptions]);
+  const resolvedDepartmentOptions = useMemo(() => {
+    const currentDepartment = formData.department.trim();
+    if (currentDepartment && !DEPARTMENTS.includes(currentDepartment)) {
+      return [...DEPARTMENTS, currentDepartment];
+    }
+    return DEPARTMENTS;
+  }, [formData.department]);
 
   const showComputerSpecs = ['Desktop', 'Laptop', 'Server'].includes(effectiveType);
   const showStorageAddonField = ['Desktop', 'Laptop', 'Server', 'USB HDD/SSD'].includes(effectiveType);
@@ -325,6 +337,9 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
               <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
               <SelectContent>
                 {ASSET_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                {formData.type && formData.type !== '__manual__' && !ASSET_TYPES.includes(formData.type) && (
+                  <SelectItem value={formData.type}>{formData.type}</SelectItem>
+                )}
                 <SelectItem value="__manual__">Other (manual)</SelectItem>
               </SelectContent>
             </Select>
@@ -485,7 +500,9 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
             <FieldLabel>Department</FieldLabel>
             <Select value={formData.department} onValueChange={(value) => handleChange('department', value)}>
               <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-              <SelectContent>{DEPARTMENTS.map((dept) => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
+              <SelectContent>
+                {resolvedDepartmentOptions.map((dept) => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
+              </SelectContent>
             </Select>
           </FieldGroup>
           <FieldGroup>
