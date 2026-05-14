@@ -41,6 +41,12 @@ export default function EditAssetPage() {
     setSession(currentSession);
 
     const loadAsset = async () => {
+      const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
+      const existingAssets: Asset[] = storedAssets
+        ? (JSON.parse(storedAssets) as Asset[]).map((item) => normalizeAssetRecord(item))
+        : mockAssets.map((item) => normalizeAssetRecord(item));
+      const localFallback = existingAssets.find((item) => item.id === assetId) || null;
+
       if (canUseAssetSupabase(currentSession)) {
         try {
           const supabase = getAssetSupabaseClient();
@@ -53,7 +59,17 @@ export default function EditAssetPage() {
             .maybeSingle();
 
           if (data) {
-            setAsset(assetDbRowToRecord(data));
+            const dbAsset = assetDbRowToRecord(data);
+            setAsset(
+              normalizeAssetRecord({
+                ...localFallback,
+                ...dbAsset,
+                type: dbAsset.type || localFallback?.type || '',
+                vendor: dbAsset.vendor || localFallback?.vendor || '',
+                designation: dbAsset.designation || localFallback?.designation || '',
+                department: dbAsset.department || localFallback?.department || '',
+              })
+            );
             return;
           }
         } catch {
@@ -61,11 +77,7 @@ export default function EditAssetPage() {
         }
       }
 
-      const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
-      const existingAssets: Asset[] = storedAssets
-        ? (JSON.parse(storedAssets) as Asset[]).map((item) => normalizeAssetRecord(item))
-        : mockAssets.map((item) => normalizeAssetRecord(item));
-      setAsset(existingAssets.find((item) => item.id === assetId) || null);
+      setAsset(localFallback);
     };
 
     void loadAsset();
