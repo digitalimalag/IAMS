@@ -15,6 +15,7 @@ import type { Session } from '@/lib/auth';
 import { readStoredSession } from '@/lib/licenses';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { writeAuditLog } from '@/lib/audit';
+import { readTenantJson, writeTenantJson } from '@/lib/tenant-storage';
 
 const DEPARTMENT_STORAGE_KEY = 'it_departments';
 
@@ -31,18 +32,18 @@ function CompaniesContent() {
 
   useEffect(() => {
     setSession(readStoredSession());
-    const storedDepartments = localStorage.getItem(DEPARTMENT_STORAGE_KEY);
-    if (!storedDepartments) return;
-    try {
-      setDepartments(JSON.parse(storedDepartments));
-    } catch {
-      setDepartments(mockDepartments);
+    const currentSession = readStoredSession();
+    const scopedDepartments = readTenantJson<any[]>(DEPARTMENT_STORAGE_KEY, currentSession, []);
+    if (scopedDepartments.length > 0) {
+      setDepartments(scopedDepartments);
+      return;
     }
+    setDepartments(mockDepartments);
   }, []);
 
   const persistDepartments = (nextDepartments: any[]) => {
     setDepartments(nextDepartments);
-    localStorage.setItem(DEPARTMENT_STORAGE_KEY, JSON.stringify(nextDepartments));
+    writeTenantJson(DEPARTMENT_STORAGE_KEY, session, nextDepartments);
   };
 
   const handleDepartmentSubmit = (dept: any) => {

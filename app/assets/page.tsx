@@ -24,6 +24,7 @@ import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import type { Session } from '@/lib/auth';
 import { writeAuditLog } from '@/lib/audit';
 import { getPlanConfig, normalizePlan } from '@/lib/subscription';
+import { readTenantJson, writeTenantJson } from '@/lib/tenant-storage';
 import { 
   ASSET_STORAGE_KEY,
   assetDbRowToRecord,
@@ -76,24 +77,23 @@ export default function AssetsPage() {
             .eq('organization_id', orgId)
             .order('created_at', { ascending: false });
 
-          if (!error && Array.isArray(data) && data.length > 0) {
+          if (!error && Array.isArray(data)) {
             setAssets(data.map((row) => assetDbRowToRecord(row)));
             return;
           }
         } catch {
-          // Fallback below
+          setAssets([]);
+          return;
         }
+
+        setAssets([]);
+        return;
       }
 
-      const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
-      if (storedAssets) {
-        try {
-          setAssets((JSON.parse(storedAssets) as Asset[]).map((asset) => normalizeAssetRecord(asset)));
-          return;
-        } catch {
-          setAssets(mockAssets.map((asset) => normalizeAssetRecord(asset)));
-          return;
-        }
+      const localAssets = readTenantJson<Asset[]>(ASSET_STORAGE_KEY, currentSession, []);
+      if (localAssets.length > 0) {
+        setAssets(localAssets.map((asset) => normalizeAssetRecord(asset)));
+        return;
       }
 
       setAssets(mockAssets.map((asset) => normalizeAssetRecord(asset)));
@@ -113,12 +113,12 @@ export default function AssetsPage() {
 
   const persistAssets = (nextAssets: any[]) => {
     setAssets(nextAssets);
-    localStorage.setItem(ASSET_STORAGE_KEY, JSON.stringify(nextAssets));
+    writeTenantJson(ASSET_STORAGE_KEY, session, nextAssets);
   };
 
   const persistTransferHistory = (nextHistory: AssetTransferRecord[]) => {
     setTransferHistory(nextHistory);
-    localStorage.setItem(ASSET_TRANSFER_HISTORY_KEY, JSON.stringify(nextHistory));
+    writeTenantJson(ASSET_TRANSFER_HISTORY_KEY, session, nextHistory);
   };
 
   const visibleAssets = useMemo(() => {

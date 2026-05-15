@@ -31,33 +31,32 @@ interface NavItem {
   href?: string;
   icon?: any;
   category?: string;
-  adminOnly?: boolean;
-  masterAdminOnly?: boolean;
+  allowedRoles?: UserRole[];
 }
 
 const allNavItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
   { category: 'Inventory Management' },
-  { label: 'Assets', href: '/assets', icon: Package },
-  { label: 'Network Devices', href: '/network-devices', icon: Network },
-  { label: 'IT Help Desk Ticketing', href: '/issues', icon: AlertCircle },
+  { label: 'Assets', href: '/assets', icon: Package, allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] },
+  { label: 'Network Devices', href: '/network-devices', icon: Network, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'IT Help Desk Ticketing', href: '/issues', icon: AlertCircle, allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] },
   { category: 'Operations' },
-  { label: 'Departments', href: '/companies', icon: Building2, adminOnly: true },
-  { label: 'Vendors', href: '/vendors', icon: Briefcase, adminOnly: true },
-  { label: 'Asset Requests', href: '/requests', icon: Clock },
-  { label: 'Purchases', href: '/purchases', icon: ShoppingCart, adminOnly: true },
-  { label: 'Asset Handovers', href: '/handovers', icon: LogOut },
+  { label: 'Departments', href: '/companies', icon: Building2, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'Vendors', href: '/vendors', icon: Briefcase, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'Asset Requests', href: '/requests', icon: Clock, allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] },
+  { label: 'Purchases', href: '/purchases', icon: ShoppingCart, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'Asset Handovers', href: '/handovers', icon: LogOut, allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] },
   { category: 'Administration' },
-  { label: 'Users', href: '/users', icon: Users, masterAdminOnly: true },
-  { label: 'Reports', href: '/reports', icon: BarChart3, adminOnly: true },
-  { label: 'Audit Logs', href: '/audit-logs', icon: FileText, adminOnly: true },
-  { label: 'License Manager', href: '/licenses', icon: FileText, adminOnly: true },
-  { label: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
-  { category: 'Billing & Plans', masterAdminOnly: true },
-  { label: 'Billing', href: '/billing', icon: BadgeDollarSign, masterAdminOnly: true },
-  { label: 'Payments', href: '/billing?view=payments', icon: CreditCard, masterAdminOnly: true },
-  { label: 'Subscription Plan', href: '/billing?view=subscription', icon: ReceiptText, masterAdminOnly: true },
-  { label: 'Onboarding', href: '/onboarding', icon: FileText, masterAdminOnly: true },
+  { label: 'Users', href: '/users', icon: Users, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'Reports', href: '/reports', icon: BarChart3, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'Audit Logs', href: '/audit-logs', icon: FileText, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'License Manager', href: '/licenses', icon: FileText, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'Settings', href: '/settings', icon: Settings, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { category: 'Billing & Plans', allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'Billing', href: '/billing', icon: BadgeDollarSign, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'Payments', href: '/billing?view=payments', icon: CreditCard, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'Subscription Plan', href: '/billing?view=subscription', icon: ReceiptText, allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  { label: 'Onboarding', href: '/onboarding', icon: FileText, allowedRoles: ['master_admin'] },
 ];
 
 const employeeNavAllowlist = new Set([
@@ -71,8 +70,7 @@ function getVisibleNavItems(items: NavItem[], userRole: UserRole) {
   if (userRole !== 'employee') {
     return items.filter((item) => {
       if (!('href' in item)) return true;
-      if (item.masterAdminOnly && userRole !== 'master_admin') return false;
-      if (item.adminOnly && userRole !== 'master_admin' && userRole !== 'admin') return false;
+      if (item.allowedRoles && !item.allowedRoles.includes(userRole)) return false;
       return true;
     });
   }

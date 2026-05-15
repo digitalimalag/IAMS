@@ -21,6 +21,7 @@ import { ExportButtons } from '@/components/export-buttons';
 import type { Session } from '@/lib/auth';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { writeAuditLog } from '@/lib/audit';
+import { readTenantJson, writeTenantJson } from '@/lib/tenant-storage';
 
 const DEVICE_STORAGE_KEY = 'it_network_devices';
 
@@ -39,26 +40,28 @@ export default function NetworkDevicesPage() {
 
   useEffect(() => {
     const sessionStr = localStorage.getItem('session');
+    let currentSession: Session | null = null;
     if (sessionStr) {
       try {
-        setSession(JSON.parse(sessionStr));
+        currentSession = JSON.parse(sessionStr);
+        setSession(currentSession);
       } catch {
         setSession(null);
       }
     }
 
-    const storedDevices = localStorage.getItem(DEVICE_STORAGE_KEY);
-    if (!storedDevices) return;
-    try {
-      setDevices(JSON.parse(storedDevices));
-    } catch {
-      setDevices(mockNetworkDevices);
+    const scopedDevices = readTenantJson<any[]>(DEVICE_STORAGE_KEY, currentSession, []);
+    if (scopedDevices.length > 0) {
+      setDevices(scopedDevices);
+      return;
     }
+
+    setDevices(mockNetworkDevices);
   }, []);
 
   const persistDevices = (nextDevices: any[]) => {
     setDevices(nextDevices);
-    localStorage.setItem(DEVICE_STORAGE_KEY, JSON.stringify(nextDevices));
+    writeTenantJson(DEVICE_STORAGE_KEY, session, nextDevices);
   };
 
   const handleDeleteDevice = (id: string) => {

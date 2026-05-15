@@ -25,6 +25,7 @@ import {
   readStoredSession,
 } from '@/lib/licenses';
 import { writeAuditLog } from '@/lib/audit';
+import { readTenantJson, writeTenantJson } from '@/lib/tenant-storage';
 
 export default function LicensesPage() {
   const router = useRouter();
@@ -59,16 +60,15 @@ export default function LicensesPage() {
             setLicenses((data || []).map(licenseRowToRecord));
             return;
           }
+
+          setLicenses([]);
+          return;
         }
 
-        const stored = localStorage.getItem(LICENSE_STORAGE_KEY);
-        if (stored) {
-          try {
-            setLicenses(JSON.parse(stored));
-            return;
-          } catch {
-            // Fall through to seed data
-          }
+        const stored = readTenantJson<LicenseRecord[]>(LICENSE_STORAGE_KEY, currentSession, []);
+        if (stored.length > 0) {
+          setLicenses(stored);
+          return;
         }
 
         setLicenses(mockLicenses);
@@ -135,7 +135,7 @@ export default function LicensesPage() {
     } else {
       const next = licenses.filter((license) => license.id !== deleteTarget.id);
       setLicenses(next);
-      localStorage.setItem(LICENSE_STORAGE_KEY, JSON.stringify(next));
+      writeTenantJson(LICENSE_STORAGE_KEY, session, next);
       await writeAuditLog(session, 'delete_license', 'license', deleteTarget.id, {
         licenseOf: deleteTarget.licenseOf,
         serialNumber: deleteTarget.serialNumber,

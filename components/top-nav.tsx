@@ -106,7 +106,7 @@ export function TopNav({ onMenuToggle }: TopNavProps) {
     it: 'IT',
     employee: 'Employee',
   }[session?.role || 'employee'];
-  const canOpenSettings = session?.role === 'master_admin' || session?.role === 'admin';
+  const canOpenSettings = session?.role === 'master_admin' || session?.role === 'admin' || session?.role === 'it' || session?.role === 'hr';
 
   return (
     <div className="bg-card border-b border-border sticky top-0 z-40">

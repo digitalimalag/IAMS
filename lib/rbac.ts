@@ -56,27 +56,26 @@ export function getRoleLandingRoute(userRole: UserRole): string {
 
 export function getVisibleMenuItems(userRole: UserRole) {
   const allItems = [
-    { label: 'Dashboard', href: '/dashboard' },
+    { label: 'Dashboard', href: '/dashboard', allowedRoles: ['master_admin', 'admin', 'it', 'hr'] as UserRole[] },
     { category: 'Inventory Management' },
-    { label: 'Assets', href: '/assets' },
-    { label: 'Network Devices', href: '/network-devices' },
-    { label: 'Issues', href: '/issues' },
+    { label: 'Assets', href: '/assets', allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] as UserRole[] },
+    { label: 'Network Devices', href: '/network-devices', allowedRoles: ['master_admin', 'admin', 'it', 'hr'] as UserRole[] },
+    { label: 'Issues', href: '/issues', allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] as UserRole[] },
     { category: 'Operations' },
-    { label: 'Departments', href: '/companies', adminOnly: true },
-    { label: 'Vendors', href: '/vendors', adminOnly: true },
-    { label: 'Asset Requests', href: '/requests' },
-    { label: 'Purchases', href: '/purchases', adminOnly: true },
+    { label: 'Departments', href: '/companies', allowedRoles: ['master_admin', 'admin', 'it', 'hr'] as UserRole[] },
+    { label: 'Vendors', href: '/vendors', allowedRoles: ['master_admin', 'admin', 'it', 'hr'] as UserRole[] },
+    { label: 'Asset Requests', href: '/requests', allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] as UserRole[] },
+    { label: 'Purchases', href: '/purchases', allowedRoles: ['master_admin', 'admin', 'it', 'hr'] as UserRole[] },
     { category: 'Administration' },
-    { label: 'Users', href: '/users', adminOnly: true, masterAdminOnly: true },
-    { label: 'Reports', href: '/reports', adminOnly: true },
-    { label: 'Audit Logs', href: '/audit-logs', adminOnly: true },
-    { label: 'Settings', href: '/settings', adminOnly: true },
+    { label: 'Users', href: '/users', allowedRoles: ['master_admin', 'admin', 'it', 'hr'] as UserRole[] },
+    { label: 'Reports', href: '/reports', allowedRoles: ['master_admin', 'admin', 'it', 'hr'] as UserRole[] },
+    { label: 'Audit Logs', href: '/audit-logs', allowedRoles: ['master_admin', 'admin', 'it', 'hr'] as UserRole[] },
+    { label: 'Settings', href: '/settings', allowedRoles: ['master_admin', 'admin', 'it', 'hr'] as UserRole[] },
   ];
 
   return allItems.filter(item => {
     if ('href' in item) {
-      if (item.masterAdminOnly && userRole !== 'master_admin') return false;
-      if (item.adminOnly && userRole === 'employee') return false;
+      if (item.allowedRoles && !item.allowedRoles.includes(userRole)) return false;
     }
     return true;
   });

@@ -4,6 +4,7 @@ import { mockAssets, mockDepartments, mockIssues, mockNetworkDevices } from '@/l
 import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { assetDbRowToRecord } from '@/lib/assets';
 import { issueRowToRecord } from '@/lib/issues';
+import { readTenantJson } from '@/lib/tenant-storage';
 
 export type OverviewStats = {
   totalAssets: number;
@@ -29,22 +30,11 @@ export type OverviewData = {
   issues: Issue[];
 };
 
-function readJson<T>(key: string, fallback: T): T {
-  if (typeof window === 'undefined') return fallback;
-  const raw = localStorage.getItem(key);
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function buildLocalOverview(): OverviewData {
-  const assets = readJson<Asset[]>('it_assets', mockAssets);
-  const networkDevices = readJson<NetworkDevice[]>('it_network_devices', mockNetworkDevices);
-  const issues = readJson<Issue[]>('issues', mockIssues);
-  const departments = readJson<Department[]>('it_departments', mockDepartments);
+function buildLocalOverview(session: Session | null): OverviewData {
+  const assets = readTenantJson<Asset[]>('it_assets', session, mockAssets);
+  const networkDevices = readTenantJson<NetworkDevice[]>('it_network_devices', session, mockNetworkDevices);
+  const issues = readTenantJson<Issue[]>('issues', session, mockIssues);
+  const departments = readTenantJson<Department[]>('it_departments', session, mockDepartments);
 
   const stats: OverviewStats = {
     totalAssets: assets.length,
@@ -82,7 +72,7 @@ function buildLocalOverview(): OverviewData {
 
 export async function loadOverviewData(session: Session | null): Promise<OverviewData> {
   if (!isSupabaseConfigured() || !session?.organizationId?.trim()) {
-    return buildLocalOverview();
+    return buildLocalOverview(session);
   }
 
   try {
@@ -139,6 +129,26 @@ export async function loadOverviewData(session: Session | null): Promise<Overvie
 
     return { stats, assetDistribution, recentIssues, issueStats, departments, assets, networkDevices, issues };
   } catch {
-    return buildLocalOverview();
+    return {
+      stats: {
+        totalAssets: 0,
+        activeAssets: 0,
+        assetsNeedingMaintenance: 0,
+        totalNetworkDevices: 0,
+        onlineDevices: 0,
+        openIssues: 0,
+        inProgressIssues: 0,
+        resolvedIssues: 0,
+        totalDepartments: 0,
+        totalCompanies: 0,
+      },
+      assetDistribution: [],
+      recentIssues: [],
+      issueStats: { open: 0, inProgress: 0, resolved: 0 },
+      departments: [],
+      assets: [],
+      networkDevices: [],
+      issues: [],
+    };
   }
 }

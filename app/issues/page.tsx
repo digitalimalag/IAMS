@@ -17,6 +17,7 @@ import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { writeAuditLog } from '@/lib/audit';
 import { canUseAssetSupabase, getAssetOrganizationId, getAssetSupabaseClient, assetDbRowToRecord } from '@/lib/assets';
 import { canUseIssueSupabase, getIssueOrganizationId, getSupabaseIssuesClient, issueRowToRecord, ISSUE_STORAGE_KEY, getIssueDisplayId } from '@/lib/issues';
+import { readTenantJson, writeTenantJson } from '@/lib/tenant-storage';
 
 export default function IssuesPage() {
   const router = useRouter();
@@ -55,18 +56,20 @@ export default function IssuesPage() {
             .order('created_at', { ascending: false });
           if (!error && Array.isArray(data)) {
             setAssets(data.map((row) => assetDbRowToRecord(row as any)));
+            return;
           }
         } catch {
-          // fallback below
+          setAssets([]);
+          return;
         }
+        setAssets([]);
+        return;
       } else {
-        const storedAssets = localStorage.getItem('it_assets');
-        if (storedAssets) {
-          try {
-            setAssets(JSON.parse(storedAssets));
-          } catch {
-            setAssets(mockAssets);
-          }
+        const storedAssets = readTenantJson<any[]>('it_assets', currentSession, []);
+        if (storedAssets.length > 0) {
+          setAssets(storedAssets);
+        } else {
+          setAssets(mockAssets);
         }
       }
 
@@ -85,17 +88,19 @@ export default function IssuesPage() {
             return;
           }
         } catch {
-          // fallback below
+          setIssues([]);
+          return;
         }
+
+        setIssues([]);
+        return;
       }
 
-      const storedIssues = localStorage.getItem(ISSUE_STORAGE_KEY);
-      if (storedIssues) {
-        try {
-          setIssues(JSON.parse(storedIssues));
-        } catch {
-          setIssues(mockIssues);
-        }
+      const storedIssues = readTenantJson<any[]>(ISSUE_STORAGE_KEY, currentSession, []);
+      if (storedIssues.length > 0) {
+        setIssues(storedIssues);
+      } else {
+        setIssues(mockIssues);
       }
     };
 
@@ -104,7 +109,7 @@ export default function IssuesPage() {
 
   const persistIssues = (nextIssues: typeof issues) => {
     setIssues(nextIssues);
-    localStorage.setItem(ISSUE_STORAGE_KEY, JSON.stringify(nextIssues));
+    writeTenantJson(ISSUE_STORAGE_KEY, session, nextIssues);
   };
 
   const visibleAssets = useMemo(() => {

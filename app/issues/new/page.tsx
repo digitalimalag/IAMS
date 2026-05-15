@@ -13,6 +13,7 @@ import { canUseIssueSupabase, getIssueOrganizationId, generateIssueTicketNumber,
 import { readStoredSession } from '@/lib/licenses';
 import { writeAuditLog } from '@/lib/audit';
 import { listAuthUsers } from '@/lib/auth';
+import { readTenantJson } from '@/lib/tenant-storage';
 
 export default function NewIssuePage() {
   const router = useRouter();
@@ -48,17 +49,18 @@ export default function NewIssuePage() {
             return;
           }
         } catch {
-          // fallback below
+          setAssets([]);
+          return;
         }
+        setAssets([]);
+        return;
       }
 
-      const storedAssets = localStorage.getItem('it_assets');
-      if (storedAssets) {
-        try {
-          setAssets(JSON.parse(storedAssets));
-        } catch {
-          setAssets(mockAssets);
-        }
+      const storedAssets = readTenantJson<any[]>('it_assets', currentSession, []);
+      if (storedAssets.length > 0) {
+        setAssets(storedAssets);
+      } else {
+        setAssets(mockAssets);
       }
     };
 
@@ -78,17 +80,18 @@ export default function NewIssuePage() {
             return;
           }
         } catch {
-          // fallback below
+          setExistingIssues([]);
+          return;
         }
+        setExistingIssues([]);
+        return;
       }
 
-      const storedIssues = localStorage.getItem(ISSUE_STORAGE_KEY);
-      if (storedIssues) {
-        try {
-          setExistingIssues(JSON.parse(storedIssues));
-        } catch {
-          setExistingIssues([]);
-        }
+      const storedIssues = readTenantJson<any[]>(ISSUE_STORAGE_KEY, currentSession, []);
+      if (storedIssues.length > 0) {
+        setExistingIssues(storedIssues);
+      } else {
+        setExistingIssues([]);
       }
     };
 
@@ -119,8 +122,12 @@ export default function NewIssuePage() {
             return;
           }
         } catch {
-          // fallback below
+          setAssignees([]);
+          return;
         }
+
+        setAssignees([]);
+        return;
       }
 
       const localUsers = listAuthUsers().filter((user) => allowedRoles.has(user.role) && user.isActive);

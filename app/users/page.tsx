@@ -120,6 +120,11 @@ function UsersContent() {
         return;
       }
 
+      if (isSupabaseConfigured()) {
+        setUsers([]);
+        return;
+      }
+
       setUsers(listAuthUsers() as User[]);
     } finally {
       setIsLoadingUsers(false);
