@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import type { Session } from '@/lib/auth';
+import { canAccessModule, getRoleLandingRoute } from '@/lib/rbac';
 
 interface SessionCheckProps {
   children: React.ReactNode;
@@ -10,13 +11,16 @@ interface SessionCheckProps {
 
 export function SessionCheck({ children }: SessionCheckProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const checkSession = () => {
       const sessionStr = localStorage.getItem('session');
       
       if (!sessionStr) {
-        router.push('/login');
+        router.replace('/login');
+        setIsReady(true);
         return;
       }
 
@@ -28,16 +32,28 @@ export function SessionCheck({ children }: SessionCheckProps) {
         
         if (now > expiresAt) {
           localStorage.removeItem('session');
-          router.push('/billing?renew=1');
+          router.replace('/billing?renew=1');
+          setIsReady(true);
+          return;
         }
+
+        if (!canAccessModule(pathname, session.role)) {
+          router.replace(getRoleLandingRoute(session.role));
+          setIsReady(true);
+          return;
+        }
+
+        setIsReady(true);
       } catch {
         localStorage.removeItem('session');
-        router.push('/login');
+        router.replace('/login');
+        setIsReady(true);
       }
     };
 
     checkSession();
-  }, [router]);
+  }, [pathname, router]);
 
+  if (!isReady) return null;
   return <>{children}</>;
 }

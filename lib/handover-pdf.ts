@@ -34,8 +34,13 @@ function downloadBytes(bytes: Uint8Array, filename: string) {
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 1000);
 }
 
 async function loadImage(pdf: PDFDocument, logoUrl?: string) {

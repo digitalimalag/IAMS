@@ -577,16 +577,18 @@ on public.issues
 for insert
 with check (public.is_org_member(organization_id));
 
-drop policy if exists "org admins or creators can update issues" on public.issues;
-create policy "org admins or creators can update issues"
+drop policy if exists "org admins, it staff, or creators can update issues" on public.issues;
+create policy "org admins, it staff, or creators can update issues"
 on public.issues
 for update
 using (
   public.is_org_admin(organization_id)
+  or public.has_org_role(organization_id, array['it'])
   or created_by_profile_id = public.current_profile_id()
 )
 with check (
   public.is_org_admin(organization_id)
+  or public.has_org_role(organization_id, array['it'])
   or created_by_profile_id = public.current_profile_id()
 );
 

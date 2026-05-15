@@ -20,24 +20,38 @@ export function checkAccess(userRole: UserRole, config: RBACConfig): boolean {
 }
 
 export const moduleAccess: Record<string, RBACConfig> = {
+  '/dashboard': { allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
   '/assets': { allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] },
-  '/network-devices': { allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] },
+  '/network-devices': { allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
   '/issues': { allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] },
-  '/companies': { allowedRoles: ['master_admin', 'admin'] },
-  '/users': { allowedRoles: ['master_admin'] },
-  '/vendors': { allowedRoles: ['master_admin', 'admin'] },
-  '/purchases': { allowedRoles: ['master_admin', 'admin'] },
+  '/companies': { allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  '/users': { allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  '/vendors': { allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  '/purchases': { allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
   '/requests': { allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] },
-  '/reports': { allowedRoles: ['master_admin', 'admin'] },
-  '/audit-logs': { allowedRoles: ['master_admin', 'admin'] },
-  '/settings': { allowedRoles: ['master_admin', 'admin'] },
+  '/handovers': { allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] },
+  '/reports': { allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  '/audit-logs': { allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  '/licenses': { allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  '/settings': { allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  '/billing': { allowedRoles: ['master_admin', 'admin', 'it', 'hr'] },
+  '/profile': { allowedRoles: ['master_admin', 'admin', 'it', 'hr', 'employee'] },
+  '/onboarding': { allowedRoles: ['master_admin'] },
 };
 
 export function canAccessModule(pathname: string, userRole: UserRole): boolean {
-  const config = moduleAccess[pathname];
+  const matchedPath = Object.keys(moduleAccess)
+    .sort((a, b) => b.length - a.length)
+    .find((path) => pathname === path || pathname.startsWith(`${path}/`));
+  const config = matchedPath ? moduleAccess[matchedPath] : undefined;
   if (!config) return true; // Allow by default if no config
 
   return checkAccess(userRole, config);
+}
+
+export function getRoleLandingRoute(userRole: UserRole): string {
+  if (userRole === 'employee') return '/assets';
+  return '/dashboard';
 }
 
 export function getVisibleMenuItems(userRole: UserRole) {

@@ -12,6 +12,7 @@ import { canUseAssetSupabase, getAssetOrganizationId, getAssetSupabaseClient, as
 import { canUseIssueSupabase, getIssueOrganizationId, issueInputToPayload, issueRowToRecord, ISSUE_STORAGE_KEY } from '@/lib/issues';
 import { readStoredSession } from '@/lib/licenses';
 import { writeAuditLog } from '@/lib/audit';
+import { listAuthUsers } from '@/lib/auth';
 
 export default function EditIssuePage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function EditIssuePage() {
   const [session, setSession] = useState<any>(null);
   const [issue, setIssue] = useState<Issue | null>(null);
   const [assets, setAssets] = useState(mockAssets);
+  const [assignees, setAssignees] = useState<string[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -85,7 +87,47 @@ export default function EditIssuePage() {
       setIssue(existingIssues.find((item) => item.id === issueId) || null);
     };
 
+    const loadAssignees = async () => {
+      const currentSession = sessionStr ? JSON.parse(sessionStr) : readStoredSession();
+      const allowedRoles = new Set(['master_admin', 'admin', 'it']);
+      if (canUseIssueSupabase(currentSession)) {
+        try {
+          const supabase = createSupabaseBrowserClient();
+          const orgId = getIssueOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('full_name,title,role,is_active')
+            .eq('organization_id', orgId)
+            .eq('is_active', true)
+            .in('role', Array.from(allowedRoles));
+          if (!error && Array.isArray(data)) {
+            setAssignees(
+              data
+                .map((row) => {
+                  const fullName = String(row.full_name || '').trim();
+                  if (!fullName) return '';
+                  const title = String(row.title || '').trim();
+                  return title ? `${fullName} - ${title}` : fullName;
+                })
+                .filter(Boolean)
+            );
+            return;
+          }
+        } catch {
+          // fallback below
+        }
+      }
+
+      const localUsers = listAuthUsers().filter((user) => allowedRoles.has(user.role) && user.isActive);
+      setAssignees(
+        localUsers
+          .map((user) => (user.designation ? `${user.name} - ${user.designation}` : user.name))
+          .filter(Boolean)
+      );
+    };
+
     void loadData();
+    void loadAssignees();
   }, [issueId]);
 
   const initialValues = useMemo<Partial<IssueFormValues> | undefined>(() => {
@@ -178,6 +220,8 @@ export default function EditIssuePage() {
             initialValues={initialValues}
             assets={assets}
             isEmployee={session?.role === 'employee'}
+            canAssignTeamMember={session?.role === 'master_admin' || session?.role === 'admin' || session?.role === 'it'}
+            assignees={assignees}
             defaultDepartment={session?.department}
             error={error}
             onSubmit={handleSubmit}

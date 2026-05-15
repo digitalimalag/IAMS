@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FieldGroup, FieldLabel } from '@/components/ui/field';
 import type { Asset, Issue } from '@/lib/mock-data';
 import { formatDateYMD } from '@/lib/date';
+import { Search } from 'lucide-react';
 
 export type IssueFormValues = {
   id: string;
@@ -30,7 +31,9 @@ interface IssueFormProps {
   cancelHref: string;
   initialValues?: Partial<IssueFormValues>;
   assets?: Asset[];
+  assignees?: string[];
   isEmployee?: boolean;
+  canAssignTeamMember?: boolean;
   defaultDepartment?: string;
   onSubmit: (values: IssueFormValues) => void;
   error?: string;
@@ -52,7 +55,6 @@ const defaultValues: IssueFormValues = {
 
 const STATUSES: IssueFormValues['status'][] = ['Open', 'In Progress', 'Resolved'];
 const PRIORITIES: IssueFormValues['priority'][] = ['Low', 'Medium', 'High'];
-const ASSIGNEES = ['Mike Chen', 'Lisa Park', 'David Smith', 'Emma Wilson'];
 const DEPARTMENTS = ['IT Support', 'Infrastructure', 'Design', 'Operations', 'Security'];
 
 export function IssueForm({
@@ -62,12 +64,15 @@ export function IssueForm({
   cancelHref,
   initialValues,
   assets = [],
+  assignees = [],
   isEmployee = false,
+  canAssignTeamMember = false,
   defaultDepartment,
   onSubmit,
   error,
 }: IssueFormProps) {
   const [formData, setFormData] = useState<IssueFormValues>(defaultValues);
+  const [assetSearchTerm, setAssetSearchTerm] = useState('');
 
   useEffect(() => {
     setFormData({
@@ -76,7 +81,26 @@ export function IssueForm({
       createdDate: initialValues?.createdDate || formatDateYMD(new Date()),
       department: initialValues?.department || defaultDepartment || '',
     });
+    setAssetSearchTerm('');
   }, [defaultDepartment, initialValues]);
+
+  const filteredAssets = useMemo(() => {
+    const term = assetSearchTerm.trim().toLowerCase();
+    if (!term) return assets;
+    return assets.filter((asset) => {
+      const haystack = [
+        asset.name,
+        asset.assetTag,
+        asset.serialNumber,
+        asset.model,
+        asset.manufacturer,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [assetSearchTerm, assets]);
 
   const handleChange = (field: keyof IssueFormValues, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -135,19 +159,36 @@ export function IssueForm({
               <Select value={formData.assetId} onValueChange={(value) => handleChange('assetId', value)}>
                 <SelectTrigger><SelectValue placeholder="Select asset" /></SelectTrigger>
                 <SelectContent>
+                  <div className="px-2 pb-2">
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={assetSearchTerm}
+                        onChange={(e) => setAssetSearchTerm(e.target.value)}
+                        placeholder="Search by asset tag..."
+                        className="pl-10"
+                        onKeyDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
                   <SelectItem value="none">No Asset</SelectItem>
-                  {assets.map((asset) => <SelectItem key={asset.id} value={asset.id}>{asset.name} ({asset.assetTag})</SelectItem>)}
+                  {filteredAssets.map((asset) => <SelectItem key={asset.id} value={asset.id}>{asset.name} ({asset.assetTag})</SelectItem>)}
                 </SelectContent>
               </Select>
             </FieldGroup>
             <FieldGroup>
               <FieldLabel>Assigned IT Team Member</FieldLabel>
-              {isEmployee ? (
+              {!canAssignTeamMember || isEmployee ? (
                 <Input value="Auto-assigned" disabled />
+              ) : assignees.length === 0 ? (
+                <Input value="No IT team members found" disabled />
               ) : (
                 <Select value={formData.assignedTo} onValueChange={(value) => handleChange('assignedTo', value)}>
                   <SelectTrigger><SelectValue placeholder="Select assignee" /></SelectTrigger>
-                  <SelectContent>{ASSIGNEES.map((assignee) => <SelectItem key={assignee} value={assignee}>{assignee}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {assignees.map((assignee) => <SelectItem key={assignee} value={assignee}>{assignee}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               )}
             </FieldGroup>

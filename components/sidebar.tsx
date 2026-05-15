@@ -60,6 +60,46 @@ const allNavItems: NavItem[] = [
   { label: 'Onboarding', href: '/onboarding', icon: FileText, masterAdminOnly: true },
 ];
 
+const employeeNavAllowlist = new Set([
+  '/assets',
+  '/issues',
+  '/requests',
+  '/handovers',
+]);
+
+function getVisibleNavItems(items: NavItem[], userRole: UserRole) {
+  if (userRole !== 'employee') {
+    return items.filter((item) => {
+      if (!('href' in item)) return true;
+      if (item.masterAdminOnly && userRole !== 'master_admin') return false;
+      if (item.adminOnly && userRole !== 'master_admin' && userRole !== 'admin') return false;
+      return true;
+    });
+  }
+
+  const visible: NavItem[] = [];
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    if ('href' in item) {
+      if (item.href && employeeNavAllowlist.has(item.href)) {
+        visible.push(item);
+      }
+      continue;
+    }
+
+    const nextCategoryIndex = items.findIndex((candidate, candidateIndex) => candidateIndex > index && 'category' in candidate);
+    const sectionItems = items.slice(index + 1, nextCategoryIndex === -1 ? items.length : nextCategoryIndex);
+    const sectionHasVisibleItem = sectionItems.some(
+      (candidate) => 'href' in candidate && Boolean(candidate.href) && employeeNavAllowlist.has(candidate.href as string)
+    );
+    if (sectionHasVisibleItem) {
+      visible.push(item);
+    }
+  }
+
+  return visible;
+}
+
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
@@ -110,12 +150,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     loadWorkspace();
   }, []);
 
-  const visibleItems = allNavItems.filter(item => {
-    if (!('href' in item)) return true;
-    if (item.masterAdminOnly && userRole !== 'master_admin') return false;
-    if (item.adminOnly && userRole === 'employee') return false;
-    return true;
-  });
+  const visibleItems = getVisibleNavItems(allNavItems, userRole);
 
   return (
     <>

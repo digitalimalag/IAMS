@@ -12,6 +12,7 @@ import { canUseAssetSupabase, getAssetOrganizationId, getAssetSupabaseClient, as
 import { canUseIssueSupabase, getIssueOrganizationId, generateIssueTicketNumber, issueInputToPayload, issueRowToRecord, getSupabaseIssuesClient, ISSUE_STORAGE_KEY } from '@/lib/issues';
 import { readStoredSession } from '@/lib/licenses';
 import { writeAuditLog } from '@/lib/audit';
+import { listAuthUsers } from '@/lib/auth';
 
 export default function NewIssuePage() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function NewIssuePage() {
   const [error, setError] = useState('');
   const [assets, setAssets] = useState(mockAssets);
   const [existingIssues, setExistingIssues] = useState<Issue[]>([]);
+  const [assignees, setAssignees] = useState<string[]>([]);
 
   useEffect(() => {
     const sessionStr = localStorage.getItem('session');
@@ -90,8 +92,48 @@ export default function NewIssuePage() {
       }
     };
 
+    const loadAssignees = async () => {
+      const currentSession = sessionStr ? JSON.parse(sessionStr) : readStoredSession();
+      const allowedRoles = new Set(['master_admin', 'admin', 'it']);
+      if (canUseIssueSupabase(currentSession)) {
+        try {
+          const supabase = getSupabaseIssuesClient();
+          const orgId = getIssueOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('full_name,title,role,is_active')
+            .eq('organization_id', orgId)
+            .eq('is_active', true)
+            .in('role', Array.from(allowedRoles));
+          if (!error && Array.isArray(data)) {
+            setAssignees(
+              data
+                .map((row) => {
+                  const fullName = String(row.full_name || '').trim();
+                  if (!fullName) return '';
+                  const title = String(row.title || '').trim();
+                  return title ? `${fullName} - ${title}` : fullName;
+                })
+                .filter(Boolean)
+            );
+            return;
+          }
+        } catch {
+          // fallback below
+        }
+      }
+
+      const localUsers = listAuthUsers().filter((user) => allowedRoles.has(user.role) && user.isActive);
+      setAssignees(
+        localUsers
+          .map((user) => (user.designation ? `${user.name} - ${user.designation}` : user.name))
+          .filter(Boolean)
+      );
+    };
+
     void loadAssets();
     void loadIssues();
+    void loadAssignees();
   }, []);
 
   const handleSubmit = (values: IssueFormValues) => {
@@ -165,6 +207,8 @@ export default function NewIssuePage() {
           cancelHref="/issues"
           assets={assets}
           isEmployee={session?.role === 'employee'}
+          canAssignTeamMember={session?.role === 'master_admin' || session?.role === 'admin' || session?.role === 'it'}
+          assignees={assignees}
           defaultDepartment={session?.department}
           error={error}
           onSubmit={handleSubmit}

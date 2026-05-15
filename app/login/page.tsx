@@ -11,6 +11,7 @@ import { FieldGroup, FieldLabel } from '@/components/ui/field';
 import { authenticateUser, createSession } from '@/lib/auth';
 import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { getPlanConfig, normalizePlan } from '@/lib/subscription';
+import { getRoleLandingRoute } from '@/lib/rbac';
 
 const featureList = [
   { icon: Tag, text: 'Asset tagging and lifecycle tracking' },
@@ -113,7 +114,7 @@ export default function LoginPage() {
           createdAt: new Date().toISOString().split('T')[0],
         }));
 
-        router.push('/dashboard');
+        router.push(getRoleLandingRoute(profile.role));
         return;
       }
 
@@ -131,7 +132,7 @@ export default function LoginPage() {
       const session = createSession(response.user, response.token);
       localStorage.setItem('session', JSON.stringify(session));
       localStorage.setItem('user', JSON.stringify(response.user));
-      router.push('/dashboard');
+      router.push(getRoleLandingRoute(response.user.role));
     } catch {
       setError('An error occurred during login');
     } finally {
