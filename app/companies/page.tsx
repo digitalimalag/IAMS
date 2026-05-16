@@ -8,13 +8,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search } from 'lucide-react';
-import { mockDepartments } from '@/lib/mock-data';
+import { mockDepartments, type Department } from '@/lib/mock-data';
 import { CompanyTable } from '@/components/tables/company-table';
 import { AddCompanyModal } from '@/components/modals/add-company-modal';
 import type { Session } from '@/lib/auth';
 import { readStoredSession } from '@/lib/licenses';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { writeAuditLog } from '@/lib/audit';
+import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { readTenantJson, writeTenantJson } from '@/lib/tenant-storage';
 
 const DEPARTMENT_STORAGE_KEY = 'it_departments';
@@ -24,41 +25,111 @@ function CompaniesContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<any | null>(null);
-  const [departments, setDepartments] = useState(mockDepartments);
+  const [departments, setDepartments] = useState<Department[]>(isSupabaseConfigured() ? [] : mockDepartments);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
   const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    setSession(readStoredSession());
     const currentSession = readStoredSession();
-    const scopedDepartments = readTenantJson<any[]>(DEPARTMENT_STORAGE_KEY, currentSession, []);
-    if (scopedDepartments.length > 0) {
-      setDepartments(scopedDepartments);
-      return;
-    }
-    setDepartments(mockDepartments);
+    setSession(currentSession);
+
+    const loadDepartments = async () => {
+      if (isSupabaseConfigured() && currentSession?.organizationId) {
+        try {
+          const supabase = createSupabaseBrowserClient();
+          const { data, error } = await supabase
+            .from('departments')
+            .select('id,name,manager_name,manager_email,phone,location,is_active')
+            .eq('organization_id', currentSession.organizationId)
+            .order('created_at', { ascending: false });
+
+          if (!error && Array.isArray(data)) {
+            setDepartments(
+              data.map((row: any) => ({
+                id: row.id,
+                name: row.name || '',
+                manager: row.manager_name || '',
+                email: row.manager_email || '',
+                phone: row.phone || '',
+                location: row.location || '',
+                assetCount: 0,
+                deviceCount: 0,
+                issueCount: 0,
+              }))
+            );
+            return;
+          }
+        } catch {
+          setDepartments([]);
+          return;
+        }
+
+        setDepartments([]);
+        return;
+      }
+
+      if (isSupabaseConfigured()) {
+        setDepartments([]);
+        return;
+      }
+
+      const scopedDepartments = readTenantJson<any[]>(DEPARTMENT_STORAGE_KEY, currentSession, []);
+      if (scopedDepartments.length > 0) {
+        setDepartments(scopedDepartments);
+        return;
+      }
+      setDepartments(mockDepartments);
+    };
+
+    void loadDepartments();
   }, []);
 
-  const persistDepartments = (nextDepartments: any[]) => {
+  const persistDepartments = (nextDepartments: Department[]) => {
     setDepartments(nextDepartments);
     writeTenantJson(DEPARTMENT_STORAGE_KEY, session, nextDepartments);
   };
 
+  const saveDepartmentToSupabase = async (dept: Department) => {
+    if (!session?.organizationId || !isSupabaseConfigured()) return;
+    try {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.from('departments').upsert(
+        {
+          id: dept.id,
+          organization_id: session.organizationId,
+          name: dept.name,
+          manager_name: dept.manager || null,
+          manager_email: dept.email || null,
+          phone: dept.phone || null,
+          location: dept.location || null,
+          is_active: true,
+        },
+        { onConflict: 'organization_id,name' }
+      );
+    } catch {
+      // keep local optimistic state; live sync can be retried on next edit
+    }
+  };
+
   const handleDepartmentSubmit = (dept: any) => {
     if (editingDepartment) {
-      persistDepartments(departments.map(d => d.id === dept.id ? dept : d));
+      const nextDepartments = departments.map((d) => (d.id === dept.id ? { ...d, ...dept } : d));
+      persistDepartments(nextDepartments);
+      void saveDepartmentToSupabase(dept);
       setEditingDepartment(null);
     } else {
       const newDept = {
         ...dept,
-        id: `DEPT-${Date.now()}`,
+        id: isSupabaseConfigured() ? crypto.randomUUID() : `DEPT-${Date.now()}`,
         assetCount: 0,
         deviceCount: 0,
         issueCount: 0,
       };
-      persistDepartments([...departments, newDept]);
+      const nextDepartments = [...departments, newDept];
+      persistDepartments(nextDepartments);
+      void saveDepartmentToSupabase(newDept);
     }
   };
 
@@ -81,12 +152,22 @@ function CompaniesContent() {
       return;
     }
 
-    persistDepartments(departments.filter(d => d.id !== deleteTarget.id));
+    const nextDepartments = departments.filter((d) => d.id !== deleteTarget.id);
+    persistDepartments(nextDepartments);
     await writeAuditLog(session, 'delete_department', 'department', deleteTarget.id, {
       departmentName: deleteTarget.name,
       manager: deleteTarget.manager,
       reason: deleteReason.trim(),
     });
+
+    if (isSupabaseConfigured() && session?.organizationId) {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        await supabase.from('departments').delete().eq('id', deleteTarget.id).eq('organization_id', session.organizationId);
+      } catch {
+        // local optimistic delete already applied
+      }
+    }
 
     setDeleteTarget(null);
     setDeleteConfirmation('');
@@ -102,6 +183,8 @@ function CompaniesContent() {
       dept.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
+
+  const getDepartmentDisplayId = (index: number) => `DEPT-${String(index + 1).padStart(3, '0')}`;
 
   return (
     <DashboardLayout>
@@ -158,7 +241,7 @@ function CompaniesContent() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {filteredDepartments.map((dept) => (
+              {filteredDepartments.map((dept, index) => (
                 <Card key={dept.id} className="bg-card border-border/50 hover:border-border transition-colors">
                   <CardHeader>
                     <CardTitle className="text-xl">{dept.name}</CardTitle>
@@ -181,7 +264,7 @@ function CompaniesContent() {
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-wide text-muted-foreground">ID</p>
-                        <p className="font-mono text-sm text-muted-foreground">{dept.id}</p>
+                        <p className="font-mono text-sm text-muted-foreground">{getDepartmentDisplayId(index)}</p>
                       </div>
                     </div>
 

@@ -5,9 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { SessionCheck } from '@/components/session-check';
 import { IssueForm, type IssueFormValues } from '@/components/forms/issue-form';
-import { mockAssets, mockIssues } from '@/lib/mock-data';
+import { mockAssets, mockIssues, mockDepartments } from '@/lib/mock-data';
 import type { Issue } from '@/lib/mock-data';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { canUseAssetSupabase, getAssetOrganizationId, getAssetSupabaseClient, assetDbRowToRecord } from '@/lib/assets';
 import { canUseIssueSupabase, getIssueOrganizationId, issueInputToPayload, issueRowToRecord, ISSUE_STORAGE_KEY } from '@/lib/issues';
 import { readStoredSession } from '@/lib/licenses';
@@ -21,7 +21,8 @@ export default function EditIssuePage() {
   const issueId = params.id;
   const [session, setSession] = useState<any>(null);
   const [issue, setIssue] = useState<Issue | null>(null);
-  const [assets, setAssets] = useState(mockAssets);
+  const [assets, setAssets] = useState(isSupabaseConfigured() ? [] : mockAssets);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [assignees, setAssignees] = useState<string[]>([]);
   const [error, setError] = useState('');
 
@@ -58,11 +59,15 @@ export default function EditIssuePage() {
         setAssets([]);
         return;
       } else {
-        const storedAssets = readTenantJson<any[]>('it_assets', currentSession, []);
-        if (storedAssets.length > 0) {
-          setAssets(storedAssets);
+        if (isSupabaseConfigured()) {
+          setAssets([]);
         } else {
-          setAssets(mockAssets);
+          const storedAssets = readTenantJson<any[]>('it_assets', currentSession, []);
+          if (storedAssets.length > 0) {
+            setAssets(storedAssets);
+          } else {
+            setAssets(mockAssets);
+          }
         }
       }
 
@@ -88,8 +93,48 @@ export default function EditIssuePage() {
         return;
       }
 
-      const existingIssues: Issue[] = readTenantJson<Issue[]>(ISSUE_STORAGE_KEY, currentSession, mockIssues);
-      setIssue(existingIssues.find((item) => item.id === issueId) || null);
+      if (isSupabaseConfigured()) {
+        setIssue(null);
+      } else {
+        const existingIssues: Issue[] = readTenantJson<Issue[]>(ISSUE_STORAGE_KEY, currentSession, mockIssues);
+        setIssue(existingIssues.find((item) => item.id === issueId) || null);
+      }
+    };
+
+    const loadDepartments = async () => {
+      const currentSession = sessionStr ? JSON.parse(sessionStr) : readStoredSession();
+      const allowedDepartmentsFallback = mockDepartments.map((dept) => dept.name);
+      if (canUseIssueSupabase(currentSession)) {
+        try {
+          const supabase = createSupabaseBrowserClient();
+          const orgId = getIssueOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('departments')
+            .select('name,is_active')
+            .eq('organization_id', orgId)
+            .eq('is_active', true)
+            .order('name', { ascending: true });
+          if (!error && Array.isArray(data)) {
+            setDepartments(data.map((row) => String(row.name || '').trim()).filter(Boolean));
+            return;
+          }
+        } catch {
+          setDepartments([]);
+          return;
+        }
+
+        setDepartments([]);
+        return;
+      }
+
+      if (isSupabaseConfigured()) {
+        setDepartments([]);
+        return;
+      }
+
+      const storedDepartments = readTenantJson<any[]>('it_departments', currentSession, mockDepartments);
+      const names = storedDepartments.map((dept) => String(dept.name || '').trim()).filter(Boolean);
+      setDepartments(names.length > 0 ? names : allowedDepartmentsFallback);
     };
 
     const loadAssignees = async () => {
@@ -127,6 +172,11 @@ export default function EditIssuePage() {
         return;
       }
 
+      if (isSupabaseConfigured()) {
+        setAssignees([]);
+        return;
+      }
+
       const localUsers = listAuthUsers().filter((user) => allowedRoles.has(user.role) && user.isActive);
       setAssignees(
         localUsers
@@ -136,6 +186,7 @@ export default function EditIssuePage() {
     };
 
     void loadData();
+    void loadDepartments();
     void loadAssignees();
   }, [issueId]);
 
@@ -231,6 +282,7 @@ export default function EditIssuePage() {
             isEmployee={session?.role === 'employee'}
             canAssignTeamMember={session?.role === 'master_admin' || session?.role === 'admin' || session?.role === 'it'}
             assignees={assignees}
+            departments={departments}
             defaultDepartment={session?.department}
             error={error}
             onSubmit={handleSubmit}

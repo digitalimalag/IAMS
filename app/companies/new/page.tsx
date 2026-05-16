@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Department } from '@/lib/mock-data';
+import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { readStoredSession } from '@/lib/licenses';
+import { writeTenantJson } from '@/lib/tenant-storage';
 
 const DEPARTMENT_STORAGE_KEY = 'it_departments';
 
@@ -37,11 +40,8 @@ export default function NewCompanyPage() {
       return;
     }
 
-    const stored = localStorage.getItem(DEPARTMENT_STORAGE_KEY);
-    const existingDepartments: Department[] = stored ? JSON.parse(stored) : [];
-
     const newDepartment: Department = {
-      id: `DEPT-${Date.now()}`,
+      id: isSupabaseConfigured() ? crypto.randomUUID() : `DEPT-${Date.now()}`,
       name: formData.name,
       manager: formData.manager,
       email: formData.email,
@@ -52,6 +52,42 @@ export default function NewCompanyPage() {
       issueCount: 0,
     };
 
+    const currentSession = readStoredSession();
+
+    if (isSupabaseConfigured() && currentSession?.organizationId) {
+      void (async () => {
+        try {
+          const supabase = createSupabaseBrowserClient();
+          const { error } = await supabase.from('departments').upsert(
+            {
+              id: newDepartment.id,
+              organization_id: currentSession.organizationId,
+              name: newDepartment.name,
+              manager_name: newDepartment.manager || null,
+              manager_email: newDepartment.email || null,
+              phone: newDepartment.phone || null,
+              location: newDepartment.location || null,
+              is_active: true,
+            },
+            { onConflict: 'organization_id,name' }
+          );
+
+          if (error) {
+            setError(error.message);
+            return;
+          }
+
+          writeTenantJson(DEPARTMENT_STORAGE_KEY, currentSession, [newDepartment]);
+          router.push('/companies');
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to save department.');
+        }
+      })();
+      return;
+    }
+
+    const stored = localStorage.getItem(DEPARTMENT_STORAGE_KEY);
+    const existingDepartments: Department[] = stored ? JSON.parse(stored) : [];
     localStorage.setItem(DEPARTMENT_STORAGE_KEY, JSON.stringify([...existingDepartments, newDepartment]));
     router.push('/companies');
   };

@@ -18,6 +18,7 @@ import { writeAuditLog } from '@/lib/audit';
 import { canUseAssetSupabase, getAssetOrganizationId, getAssetSupabaseClient, assetDbRowToRecord } from '@/lib/assets';
 import { canUseIssueSupabase, getIssueOrganizationId, getSupabaseIssuesClient, issueRowToRecord, ISSUE_STORAGE_KEY, getIssueDisplayId } from '@/lib/issues';
 import { readTenantJson, writeTenantJson } from '@/lib/tenant-storage';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
 
 export default function IssuesPage() {
   const router = useRouter();
@@ -26,8 +27,8 @@ export default function IssuesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-  const [issues, setIssues] = useState(mockIssues);
-  const [assets, setAssets] = useState(mockAssets);
+  const [issues, setIssues] = useState(isSupabaseConfigured() ? [] : mockIssues);
+  const [assets, setAssets] = useState(isSupabaseConfigured() ? [] : mockAssets);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
@@ -56,20 +57,20 @@ export default function IssuesPage() {
             .order('created_at', { ascending: false });
           if (!error && Array.isArray(data)) {
             setAssets(data.map((row) => assetDbRowToRecord(row as any)));
-            return;
           }
         } catch {
           setAssets([]);
-          return;
         }
-        setAssets([]);
-        return;
       } else {
-        const storedAssets = readTenantJson<any[]>('it_assets', currentSession, []);
-        if (storedAssets.length > 0) {
-          setAssets(storedAssets);
+        if (isSupabaseConfigured()) {
+          setAssets([]);
         } else {
-          setAssets(mockAssets);
+          const storedAssets = readTenantJson<any[]>('it_assets', currentSession, []);
+          if (storedAssets.length > 0) {
+            setAssets(storedAssets);
+          } else {
+            setAssets(mockAssets);
+          }
         }
       }
 
@@ -92,6 +93,11 @@ export default function IssuesPage() {
           return;
         }
 
+        setIssues([]);
+        return;
+      }
+
+      if (isSupabaseConfigured()) {
         setIssues([]);
         return;
       }

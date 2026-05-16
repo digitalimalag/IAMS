@@ -31,6 +31,7 @@ interface IssueFormProps {
   cancelHref: string;
   initialValues?: Partial<IssueFormValues>;
   assets?: Asset[];
+  departments?: string[];
   assignees?: string[];
   isEmployee?: boolean;
   canAssignTeamMember?: boolean;
@@ -64,6 +65,7 @@ export function IssueForm({
   cancelHref,
   initialValues,
   assets = [],
+  departments = [],
   assignees = [],
   isEmployee = false,
   canAssignTeamMember = false,
@@ -101,6 +103,12 @@ export function IssueForm({
       return haystack.includes(term);
     });
   }, [assetSearchTerm, assets]);
+
+  const departmentOptions = useMemo(() => {
+    const base = departments.length > 0 ? departments : DEPARTMENTS;
+    const currentValues = [formData.department, initialValues?.department, defaultDepartment].filter(Boolean) as string[];
+    return Array.from(new Set([...base, ...currentValues]));
+  }, [departments, defaultDepartment, formData.department, initialValues?.department]);
 
   const handleChange = (field: keyof IssueFormValues, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -207,7 +215,7 @@ export function IssueForm({
               ) : (
                 <Select value={formData.department} onValueChange={(value) => handleChange('department', value)}>
                   <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-                  <SelectContent>{DEPARTMENTS.map((dept) => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
+                  <SelectContent>{departmentOptions.map((dept) => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
                 </Select>
               )}
             </FieldGroup>

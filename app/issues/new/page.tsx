@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { SessionCheck } from '@/components/session-check';
 import { IssueForm, type IssueFormValues } from '@/components/forms/issue-form';
-import { mockAssets } from '@/lib/mock-data';
+import { mockAssets, mockDepartments } from '@/lib/mock-data';
 import type { Issue } from '@/lib/mock-data';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { canUseAssetSupabase, getAssetOrganizationId, getAssetSupabaseClient, assetDbRowToRecord } from '@/lib/assets';
 import { canUseIssueSupabase, getIssueOrganizationId, generateIssueTicketNumber, issueInputToPayload, issueRowToRecord, getSupabaseIssuesClient, ISSUE_STORAGE_KEY } from '@/lib/issues';
 import { readStoredSession } from '@/lib/licenses';
@@ -19,9 +19,10 @@ export default function NewIssuePage() {
   const router = useRouter();
   const [session, setSession] = useState<any>(null);
   const [error, setError] = useState('');
-  const [assets, setAssets] = useState(mockAssets);
+  const [assets, setAssets] = useState(isSupabaseConfigured() ? [] : mockAssets);
   const [existingIssues, setExistingIssues] = useState<Issue[]>([]);
   const [assignees, setAssignees] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
 
   useEffect(() => {
     const sessionStr = localStorage.getItem('session');
@@ -52,6 +53,11 @@ export default function NewIssuePage() {
           setAssets([]);
           return;
         }
+        setAssets([]);
+        return;
+      }
+
+      if (isSupabaseConfigured()) {
         setAssets([]);
         return;
       }
@@ -87,12 +93,51 @@ export default function NewIssuePage() {
         return;
       }
 
+      if (isSupabaseConfigured()) {
+        setExistingIssues([]);
+        return;
+      }
+
       const storedIssues = readTenantJson<any[]>(ISSUE_STORAGE_KEY, currentSession, []);
       if (storedIssues.length > 0) {
         setExistingIssues(storedIssues);
       } else {
         setExistingIssues([]);
       }
+    };
+
+    const loadDepartments = async () => {
+      const currentSession = sessionStr ? JSON.parse(sessionStr) : readStoredSession();
+      if (canUseIssueSupabase(currentSession)) {
+        try {
+          const supabase = getSupabaseIssuesClient();
+          const orgId = getIssueOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('departments')
+            .select('name,is_active')
+            .eq('organization_id', orgId)
+            .eq('is_active', true)
+            .order('name', { ascending: true });
+          if (!error && Array.isArray(data)) {
+            setDepartments(data.map((row) => String(row.name || '').trim()).filter(Boolean));
+            return;
+          }
+        } catch {
+          setDepartments([]);
+          return;
+        }
+
+        setDepartments([]);
+        return;
+      }
+
+      if (isSupabaseConfigured()) {
+        setDepartments([]);
+        return;
+      }
+
+      const scopedDepartments = readTenantJson<any[]>('it_departments', currentSession, mockDepartments);
+      setDepartments(scopedDepartments.map((dept) => String(dept.name || '').trim()).filter(Boolean));
     };
 
     const loadAssignees = async () => {
@@ -130,6 +175,11 @@ export default function NewIssuePage() {
         return;
       }
 
+      if (isSupabaseConfigured()) {
+        setAssignees([]);
+        return;
+      }
+
       const localUsers = listAuthUsers().filter((user) => allowedRoles.has(user.role) && user.isActive);
       setAssignees(
         localUsers
@@ -140,6 +190,7 @@ export default function NewIssuePage() {
 
     void loadAssets();
     void loadIssues();
+    void loadDepartments();
     void loadAssignees();
   }, []);
 
@@ -216,6 +267,7 @@ export default function NewIssuePage() {
           isEmployee={session?.role === 'employee'}
           canAssignTeamMember={session?.role === 'master_admin' || session?.role === 'admin' || session?.role === 'it'}
           assignees={assignees}
+          departments={departments}
           defaultDepartment={session?.department}
           error={error}
           onSubmit={handleSubmit}
