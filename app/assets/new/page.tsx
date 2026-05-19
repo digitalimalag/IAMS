@@ -6,7 +6,7 @@ import { DashboardLayout } from '@/components/dashboard-layout';
 import { SessionCheck } from '@/components/session-check';
 import { Card, CardContent } from '@/components/ui/card';
 import { AssetForm, type AssetFormValues } from '@/components/forms/asset-form';
-import { mockAssets } from '@/lib/mock-data';
+import { mockAssets, mockDepartments } from '@/lib/mock-data';
 import type { Asset } from '@/lib/mock-data';
 import type { Session } from '@/lib/auth';
 import { getPlanConfig, normalizePlan } from '@/lib/subscription';
@@ -18,11 +18,14 @@ import {
   getAssetSupabaseClient,
   normalizeAssetRecord,
 } from '@/lib/assets';
+import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { readTenantJson } from '@/lib/tenant-storage';
 
 export default function NewAssetPage() {
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState('');
+  const [departments, setDepartments] = useState<string[]>([]);
   const plan = normalizePlan(session?.plan);
   const planConfig = getPlanConfig(plan);
   const assetLimit = Number.isFinite(planConfig.assetLimit) ? planConfig.assetLimit : Number.POSITIVE_INFINITY;
@@ -36,6 +39,54 @@ export default function NewAssetPage() {
         setSession(null);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    const sessionStr = localStorage.getItem('session');
+    const currentSession = sessionStr
+      ? (() => {
+          try {
+            return JSON.parse(sessionStr) as Session;
+          } catch {
+            return null;
+          }
+        })()
+      : null;
+
+    const loadDepartments = async () => {
+      if (isSupabaseConfigured() && currentSession?.organizationId) {
+        try {
+          const supabase = createSupabaseBrowserClient();
+          const { data, error } = await supabase
+            .from('departments')
+            .select('name,is_active')
+            .eq('organization_id', currentSession.organizationId)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false });
+
+          if (!error && Array.isArray(data)) {
+            setDepartments(data.map((row: any) => String(row.name || '').trim()).filter(Boolean));
+            return;
+          }
+        } catch {
+          setDepartments([]);
+          return;
+        }
+
+        setDepartments([]);
+        return;
+      }
+
+      if (isSupabaseConfigured()) {
+        setDepartments([]);
+        return;
+      }
+
+      const storedDepartments = readTenantJson<any[]>('it_departments', currentSession, mockDepartments);
+      setDepartments(storedDepartments.map((dept) => String(dept.name || '').trim()).filter(Boolean));
+    };
+
+    void loadDepartments();
   }, []);
 
   const handleSubmit = async (values: AssetFormValues) => {
@@ -169,6 +220,7 @@ export default function NewAssetPage() {
             description="Enter the information for this asset."
             submitLabel="Save Asset"
             cancelHref="/assets"
+            departments={departments}
             error={error}
             onSubmit={handleSubmit}
           />

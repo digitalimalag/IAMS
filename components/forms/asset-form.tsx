@@ -57,6 +57,7 @@ interface AssetFormProps {
   submitLabel: string;
   cancelHref: string;
   initialValues?: Partial<AssetFormValues>;
+  departments?: string[];
   onSubmit: (values: AssetFormValues) => void;
   error?: string;
 }
@@ -68,7 +69,7 @@ const ASSET_TYPES = [
 ];
 
 const STATUSES: AssetFormValues['status'][] = ['Active', 'Inactive', 'Maintenance', 'Retired'];
-const DEPARTMENTS = ['IT Support', 'Infrastructure', 'Design', 'Operations', 'Security'];
+const DEFAULT_DEPARTMENTS = ['IT Support', 'Infrastructure', 'Design', 'Operations', 'Security'];
 
 const defaultStorageAddon = (): AssetStorageAddon => ({
   capacity: '',
@@ -146,7 +147,16 @@ function parseRamSummary(ram: string): AssetRamModule[] {
   });
 }
 
-export function AssetForm({ title, description, submitLabel, cancelHref, initialValues, onSubmit, error }: AssetFormProps) {
+export function AssetForm({
+  title,
+  description,
+  submitLabel,
+  cancelHref,
+  initialValues,
+  departments = [],
+  onSubmit,
+  error,
+}: AssetFormProps) {
   const [formData, setFormData] = useState<AssetFormValues>(defaultValues);
   const [customType, setCustomType] = useState('');
   const [vendorOptions, setVendorOptions] = useState<string[]>(mockVendors.map((vendor) => vendor.name));
@@ -209,11 +219,12 @@ export function AssetForm({ title, description, submitLabel, cancelHref, initial
   }, [formData.vendor, vendorOptions]);
   const resolvedDepartmentOptions = useMemo(() => {
     const currentDepartment = formData.department.trim();
-    if (currentDepartment && !DEPARTMENTS.includes(currentDepartment)) {
-      return [...DEPARTMENTS, currentDepartment];
+    const baseDepartments = departments.length > 0 ? departments : DEFAULT_DEPARTMENTS;
+    if (currentDepartment && !baseDepartments.includes(currentDepartment)) {
+      return [...baseDepartments, currentDepartment];
     }
-    return DEPARTMENTS;
-  }, [formData.department]);
+    return baseDepartments;
+  }, [departments, formData.department]);
 
   const showComputerSpecs = ['Desktop', 'Laptop', 'Server'].includes(effectiveType);
   const showStorageAddonField = ['Desktop', 'Laptop', 'Server', 'USB HDD/SSD'].includes(effectiveType);

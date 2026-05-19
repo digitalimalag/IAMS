@@ -6,7 +6,7 @@ import { DashboardLayout } from '@/components/dashboard-layout';
 import { SessionCheck } from '@/components/session-check';
 import { Card, CardContent } from '@/components/ui/card';
 import { AssetForm, type AssetFormValues } from '@/components/forms/asset-form';
-import { mockAssets } from '@/lib/mock-data';
+import { mockAssets, mockDepartments } from '@/lib/mock-data';
 import type { Asset } from '@/lib/mock-data';
 import type { Session } from '@/lib/auth';
 import {
@@ -18,6 +18,8 @@ import {
   getAssetSupabaseClient,
   normalizeAssetRecord,
 } from '@/lib/assets';
+import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { readTenantJson } from '@/lib/tenant-storage';
 
 export default function EditAssetPage() {
   const router = useRouter();
@@ -26,6 +28,7 @@ export default function EditAssetPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [asset, setAsset] = useState<Asset | null>(null);
   const [error, setError] = useState('');
+  const [departments, setDepartments] = useState<string[]>([]);
 
   useEffect(() => {
     const sessionStr = localStorage.getItem('session');
@@ -39,6 +42,39 @@ export default function EditAssetPage() {
         })()
       : null;
     setSession(currentSession);
+
+    const loadDepartments = async () => {
+      if (isSupabaseConfigured() && currentSession?.organizationId) {
+        try {
+          const supabase = createSupabaseBrowserClient();
+          const { data, error } = await supabase
+            .from('departments')
+            .select('name,is_active')
+            .eq('organization_id', currentSession.organizationId)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false });
+
+          if (!error && Array.isArray(data)) {
+            setDepartments(data.map((row: any) => String(row.name || '').trim()).filter(Boolean));
+            return;
+          }
+        } catch {
+          setDepartments([]);
+          return;
+        }
+
+        setDepartments([]);
+        return;
+      }
+
+      if (isSupabaseConfigured()) {
+        setDepartments([]);
+        return;
+      }
+
+      const storedDepartments = readTenantJson<any[]>('it_departments', currentSession, mockDepartments);
+      setDepartments(storedDepartments.map((dept) => String(dept.name || '').trim()).filter(Boolean));
+    };
 
     const loadAsset = async () => {
       const storedAssets = localStorage.getItem(ASSET_STORAGE_KEY);
@@ -80,6 +116,7 @@ export default function EditAssetPage() {
       setAsset(localFallback);
     };
 
+    void loadDepartments();
     void loadAsset();
   }, [assetId]);
 
@@ -227,12 +264,13 @@ export default function EditAssetPage() {
             <AssetForm
               title="Asset Details"
               description="Update the asset information below."
-              submitLabel="Update Asset"
-              cancelHref="/assets"
-              initialValues={initialValues}
-              error={error}
-              onSubmit={handleSubmit}
-            />
+            submitLabel="Update Asset"
+            cancelHref="/assets"
+            initialValues={initialValues}
+            departments={departments}
+            error={error}
+            onSubmit={handleSubmit}
+          />
           ) : (
             <Card className="bg-card border-border/50">
               <CardContent className="p-6">
