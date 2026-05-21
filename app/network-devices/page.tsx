@@ -15,15 +15,22 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, Search, RefreshCw } from 'lucide-react';
-import { mockNetworkDevices } from '@/lib/mock-data';
+import { mockNetworkDevices, type NetworkDevice } from '@/lib/mock-data';
 import { NetworkDeviceTable } from '@/components/tables/network-device-table';
 import { ExportButtons } from '@/components/export-buttons';
 import type { Session } from '@/lib/auth';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { writeAuditLog } from '@/lib/audit';
 import { readTenantJson, writeTenantJson } from '@/lib/tenant-storage';
-
-const DEVICE_STORAGE_KEY = 'it_network_devices';
+import { createSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { readStoredSession } from '@/lib/licenses';
+import {
+  canUseNetworkDeviceSupabase,
+  getNetworkDeviceOrganizationId,
+  getSupabaseNetworkDevicesClient,
+  networkDeviceRowToRecord,
+  NETWORK_DEVICE_STORAGE_KEY,
+} from '@/lib/network-devices';
 
 export default function NetworkDevicesPage() {
   const router = useRouter();
@@ -32,36 +39,62 @@ export default function NetworkDevicesPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-  const [devices, setDevices] = useState(mockNetworkDevices);
+  const [devices, setDevices] = useState<NetworkDevice[]>(isSupabaseConfigured() ? [] : mockNetworkDevices);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
   const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    const sessionStr = localStorage.getItem('session');
-    let currentSession: Session | null = null;
-    if (sessionStr) {
-      try {
-        currentSession = JSON.parse(sessionStr);
-        setSession(currentSession);
-      } catch {
-        setSession(null);
+    const currentSession = readStoredSession();
+    setSession(currentSession);
+
+    const loadDevices = async () => {
+      if (canUseNetworkDeviceSupabase(currentSession)) {
+        try {
+          const supabase = getSupabaseNetworkDevicesClient();
+          const orgId = getNetworkDeviceOrganizationId(currentSession);
+          const { data, error } = await supabase
+            .from('network_devices')
+            .select('*')
+            .eq('organization_id', orgId)
+            .order('created_at', { ascending: false });
+
+          if (!error && Array.isArray(data)) {
+            setDevices(data.map((row: any) => networkDeviceRowToRecord(row)));
+            return;
+          }
+        } catch {
+          setDevices([]);
+          return;
+        }
+
+        setDevices([]);
+        return;
       }
-    }
 
-    const scopedDevices = readTenantJson<any[]>(DEVICE_STORAGE_KEY, currentSession, []);
-    if (scopedDevices.length > 0) {
-      setDevices(scopedDevices);
-      return;
-    }
+      if (isSupabaseConfigured()) {
+        setDevices([]);
+        return;
+      }
 
-    setDevices(mockNetworkDevices);
+      const scopedDevices = readTenantJson<any[]>(NETWORK_DEVICE_STORAGE_KEY, currentSession, []);
+      if (scopedDevices.length > 0) {
+        setDevices(scopedDevices);
+        return;
+      }
+
+      setDevices(mockNetworkDevices);
+    };
+
+    void loadDevices();
   }, []);
 
   const persistDevices = (nextDevices: any[]) => {
     setDevices(nextDevices);
-    writeTenantJson(DEVICE_STORAGE_KEY, session, nextDevices);
+    if (!isSupabaseConfigured()) {
+      writeTenantJson(NETWORK_DEVICE_STORAGE_KEY, session, nextDevices);
+    }
   };
 
   const handleDeleteDevice = (id: string) => {
@@ -91,6 +124,16 @@ export default function NetworkDevicesPage() {
       deviceBrand: deleteTarget.deviceBrand || '',
       reason: deleteReason.trim(),
     });
+
+    if (canUseNetworkDeviceSupabase(session)) {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const orgId = getNetworkDeviceOrganizationId(session);
+        await supabase.from('network_devices').delete().eq('id', deleteTarget.id).eq('organization_id', orgId);
+      } catch {
+        // local state already updated
+      }
+    }
     setDeleteTarget(null);
     setDeleteConfirmation('');
     setDeleteReason('');

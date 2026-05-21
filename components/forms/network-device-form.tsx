@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FieldGroup, FieldLabel } from '@/components/ui/field';
-import type { NetworkDevice } from '@/lib/mock-data';
+import { mockDepartments } from '@/lib/mock-data';
 
 export type NetworkDeviceFormValues = {
   id: string;
@@ -17,6 +17,9 @@ export type NetworkDeviceFormValues = {
   ipAddress: string;
   macAddress: string;
   location: string;
+  vendor: string;
+  purchaseDate: string;
+  warrantyExpiry: string;
   status: 'Online' | 'Offline' | 'Error';
   firmwareVersion: string;
   department: string;
@@ -28,13 +31,15 @@ interface NetworkDeviceFormProps {
   submitLabel: string;
   cancelHref: string;
   initialValues?: Partial<NetworkDeviceFormValues>;
+  departments?: string[];
+  useDefaultDepartmentOptions?: boolean;
   onSubmit: (values: NetworkDeviceFormValues) => void;
   error?: string;
 }
 
 const DEVICE_TYPES = ['CCTV', 'Router', 'Switch', 'Access Point'];
 const STATUSES: NetworkDeviceFormValues['status'][] = ['Online', 'Offline', 'Error'];
-const DEPARTMENTS = ['IT Support', 'Infrastructure', 'Design', 'Operations', 'Security'];
+const DEFAULT_DEPARTMENTS = mockDepartments.map((dept) => dept.name);
 
 const defaultValues: NetworkDeviceFormValues = {
   id: '',
@@ -45,12 +50,25 @@ const defaultValues: NetworkDeviceFormValues = {
   ipAddress: '',
   macAddress: '',
   location: '',
+  vendor: '',
+  purchaseDate: '',
+  warrantyExpiry: '',
   status: 'Online',
   firmwareVersion: '',
   department: '',
 };
 
-export function NetworkDeviceForm({ title, description, submitLabel, cancelHref, initialValues, onSubmit, error }: NetworkDeviceFormProps) {
+export function NetworkDeviceForm({
+  title,
+  description,
+  submitLabel,
+  cancelHref,
+  initialValues,
+  departments = [],
+  useDefaultDepartmentOptions = true,
+  onSubmit,
+  error,
+}: NetworkDeviceFormProps) {
   const [formData, setFormData] = useState<NetworkDeviceFormValues>(defaultValues);
 
   useEffect(() => {
@@ -65,6 +83,13 @@ export function NetworkDeviceForm({ title, description, submitLabel, cancelHref,
     e.preventDefault();
     onSubmit(formData);
   };
+
+  const departmentOptions = useDefaultDepartmentOptions
+    ? (departments.length > 0 ? departments : DEFAULT_DEPARTMENTS)
+    : departments;
+  const resolvedDepartmentOptions = formData.department && !departmentOptions.includes(formData.department)
+    ? [...departmentOptions, formData.department]
+    : departmentOptions;
 
   return (
     <div className="space-y-6">
@@ -108,6 +133,18 @@ export function NetworkDeviceForm({ title, description, submitLabel, cancelHref,
               <Input value={formData.location} onChange={(e) => handleChange('location', e.target.value)} placeholder="Server Room" />
             </FieldGroup>
             <FieldGroup>
+              <FieldLabel>Vendor</FieldLabel>
+              <Input value={formData.vendor} onChange={(e) => handleChange('vendor', e.target.value)} placeholder="e.g., Cisco / Local Vendor" />
+            </FieldGroup>
+            <FieldGroup>
+              <FieldLabel>Purchase Date</FieldLabel>
+              <Input type="date" value={formData.purchaseDate} onChange={(e) => handleChange('purchaseDate', e.target.value)} />
+            </FieldGroup>
+            <FieldGroup>
+              <FieldLabel>Warranty Expiry</FieldLabel>
+              <Input type="date" value={formData.warrantyExpiry} onChange={(e) => handleChange('warrantyExpiry', e.target.value)} />
+            </FieldGroup>
+            <FieldGroup>
               <FieldLabel>Status</FieldLabel>
               <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -122,7 +159,7 @@ export function NetworkDeviceForm({ title, description, submitLabel, cancelHref,
               <FieldLabel>Department</FieldLabel>
               <Select value={formData.department} onValueChange={(value) => handleChange('department', value)}>
                 <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-                <SelectContent>{DEPARTMENTS.map((dept) => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
+                <SelectContent>{resolvedDepartmentOptions.map((dept) => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
               </Select>
             </FieldGroup>
           </div>

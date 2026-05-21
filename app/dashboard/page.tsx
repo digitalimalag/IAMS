@@ -48,7 +48,7 @@ function DashboardContent() {
       icon: AlertCircle,
     },
     {
-      title: 'Companies',
+      title: 'Departments',
       value: stats?.totalCompanies ?? 0,
       description: 'Managed accounts',
       icon: Zap,

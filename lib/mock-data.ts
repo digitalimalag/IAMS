@@ -143,6 +143,7 @@ export interface NetworkDevice {
   id: string;
   deviceModel?: string;
   deviceBrand?: string;
+  vendor?: string;
   name: string;
   type: 'CCTV' | 'Router' | 'Switch' | 'Access Point';
   ipAddress: string;
@@ -152,6 +153,8 @@ export interface NetworkDevice {
   lastSeen: string;
   firmwareVersion: string;
   department: string;
+  purchaseDate?: string;
+  warrantyExpiry?: string;
   assignedToUserId?: string;
 }
 
